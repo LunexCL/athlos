@@ -99,8 +99,13 @@ npm run lint
 
 ### Firebase Emulators
 
+⚠️ **Requisito:** Instalar Java JDK 11+ ([Adoptium](https://adoptium.net/))
+
 ```bash
 # Iniciar todos los emulators
+npm run emulators
+
+# O manualmente
 firebase emulators:start
 
 # Solo Firestore y Auth
@@ -376,8 +381,8 @@ GitHub: [@sebaguerrerof](https://github.com/sebaguerrerof)
 
 ## 🗓️ Status del Proyecto
 
-- [x] Sprint 0: Setup & Arquitectura Base
-- [ ] Sprint 1: Autenticación & Tenant Base
+- [x] Sprint 0: Setup & Arquitectura Base ✅
+- [x] Sprint 1: Autenticación & Tenant Base ✅
 - [ ] Sprint 2: Gestión de Clientes
 - [ ] Sprint 3: Agenda & Disponibilidad
 - [ ] Sprint 4: Pagos con Flow
@@ -388,7 +393,24 @@ GitHub: [@sebaguerrerof](https://github.com/sebaguerrerof)
 
 Ver [SPRINTS.md](./SPRINTS.md) para detalles de cada sprint.
 
+### 📋 Sprint 1 - Completado
+
+**Implementado:**
+- ✅ Sistema de tipos TypeScript completo (User, Tenant, AuthUser, AuthState)
+- ✅ Componentes UI: Button, Input, Card, Label, Toast
+- ✅ Páginas de autenticación: Login, Register, ResetPassword
+- ✅ AuthContext con gestión de estado (user, userProfile, tenant)
+- ✅ PrivateRoute para protección de rutas
+- ✅ Cloud Function `onUserCreated` para crear tenant y asignar custom claims
+- ✅ HomePage temporal para testing
+- ✅ Integración react-hook-form + zod para validación
+- ✅ Flujo completo de registro con Firestore temporal (_pendingTenants)
+
+**Próximo Sprint:** Gestión de Clientes (CRUD, invitaciones, filtros)
+
+Ver [SPRINT_1_SUMMARY.md](./SPRINT_1_SUMMARY.md) para detalles completos.
+
 ---
 
-**Última actualización:** 10 de noviembre de 2025  
-**Versión:** 0.1.0 (Sprint 0 completado)
+**Última actualización:** 10 de enero de 2025  
+**Versión:** 0.2.0 (Sprint 1 completado)
