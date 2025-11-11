@@ -64,22 +64,27 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('📝 Starting registration process...');
+      
       // Register user with Firebase Auth
+      console.log('1️⃣ Creating user in Firebase Auth...');
       const userCredential = await registerWithEmail(
         data.email,
         data.password,
         data.displayName
       );
+      console.log('✅ User created in Auth:', userCredential.user.uid);
 
       // Create tenant and user documents directly in Firestore
-      // (fallback when Cloud Functions are not available)
-      await createTenantAndUser({
+      console.log('2️⃣ Creating tenant and user documents in Firestore...');
+      const result = await createTenantAndUser({
         userId: userCredential.user.uid,
         email: data.email,
         displayName: data.displayName,
         businessName: data.businessName,
         businessType: data.businessType,
       });
+      console.log('✅ Firestore documents created:', result);
 
       toast({
         variant: 'success',
@@ -88,15 +93,19 @@ export const RegisterPage: React.FC = () => {
       });
 
       // Redirect to home (AuthContext will load user data)
-      // Force reload to get fresh custom claims
-      await userCredential.user.getIdToken(true);
+      console.log('3️⃣ Redirecting to home...');
       history.push('/home');
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('❌ Registration error:', error);
+      console.error('Error details:', {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack,
+      });
       
       const message = error?.code 
         ? getAuthErrorMessage(error.code)
-        : 'Error al crear la cuenta. Intenta nuevamente';
+        : error?.message || 'Error al crear la cuenta. Intenta nuevamente';
 
       toast({
         variant: 'error',
@@ -112,18 +121,21 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('🔐 Starting Google sign in...');
       const userCredential = await signInWithGoogle();
       const user = userCredential.user;
+      console.log('✅ Google user authenticated:', user.uid);
 
       // Check if user already has tenant (returning user)
-      // If not, create tenant with default business info
-      await createTenantAndUser({
+      console.log('2️⃣ Creating/checking tenant and user documents...');
+      const result = await createTenantAndUser({
         userId: user.uid,
         email: user.email || '',
         displayName: user.displayName || 'Usuario',
         businessName: user.displayName || 'Mi Negocio',
         businessType: 'other',
       });
+      console.log('✅ Firestore setup complete:', result);
 
       toast({
         variant: 'success',
@@ -131,13 +143,19 @@ export const RegisterPage: React.FC = () => {
         message: 'Has iniciado sesión correctamente',
       });
 
+      console.log('3️⃣ Redirecting to home...');
       history.push('/home');
     } catch (error: any) {
-      console.error('Google sign in error:', error);
+      console.error('❌ Google sign in error:', error);
+      console.error('Error details:', {
+        code: error?.code,
+        message: error?.message,
+        stack: error?.stack,
+      });
       
       const message = error?.code 
         ? getAuthErrorMessage(error.code)
-        : 'Error al iniciar sesión con Google';
+        : error?.message || 'Error al iniciar sesión con Google';
 
       toast({
         variant: 'error',

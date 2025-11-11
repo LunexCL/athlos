@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { signInWithEmail, signInWithGoogle } from '@/lib/auth';
+import { createTenantAndUser } from '@/lib/tenant';
 import { getAuthErrorMessage } from './types';
 
 // Validation schema
@@ -77,7 +78,20 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await signInWithGoogle();
+      console.log('🔐 Starting Google sign in from login...');
+      const userCredential = await signInWithGoogle();
+      const user = userCredential.user;
+      console.log('✅ Google user authenticated:', user.uid);
+
+      // Create tenant/user if first time (will skip if already exists)
+      console.log('2️⃣ Checking/creating tenant and user documents...');
+      await createTenantAndUser({
+        userId: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || 'Usuario',
+        businessName: user.displayName || 'Mi Negocio',
+        businessType: 'other',
+      });
 
       toast({
         variant: 'success',
@@ -85,13 +99,18 @@ export const LoginPage: React.FC = () => {
         message: 'Has iniciado sesión correctamente',
       });
 
+      console.log('3️⃣ Redirecting to home...');
       history.push('/home');
     } catch (error: any) {
-      console.error('Google sign in error:', error);
+      console.error('❌ Google sign in error:', error);
+      console.error('Error details:', {
+        code: error?.code,
+        message: error?.message,
+      });
       
       const message = error?.code 
         ? getAuthErrorMessage(error.code)
-        : 'Error al iniciar sesión con Google';
+        : error?.message || 'Error al iniciar sesión con Google';
 
       toast({
         variant: 'error',
