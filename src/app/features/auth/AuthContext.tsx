@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const login = async (data: LoginFormData) => {
+  const login = useCallback(async (data: LoginFormData) => {
     try {
       setState((prev) => ({ ...prev, loading: true }));
       await signInWithEmail(data.email, data.password);
@@ -116,9 +116,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setState((prev) => ({ ...prev, loading: false }));
       throw error;
     }
-  };
+  }, []);
 
-  const register = async (data: RegisterFormData) => {
+  const register = useCallback(async (data: RegisterFormData) => {
     try {
       setState((prev) => ({ ...prev, loading: true }));
       await registerWithEmail(data.email, data.password, data.displayName);
@@ -127,9 +127,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setState((prev) => ({ ...prev, loading: false }));
       throw error;
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, loading: true }));
       await firebaseSignOut();
@@ -138,14 +138,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setState((prev) => ({ ...prev, loading: false }));
       throw error;
     }
-  };
+  }, []);
 
-  const value: AuthContextValue = {
+  const value: AuthContextValue = useMemo(() => ({
     ...state,
     login,
     register,
     logout,
-  };
+  }), [state, login, register, logout]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -21,29 +21,31 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
 }) => {
   const { user, loading, initialized } = useAuth();
 
-  // Show loading spinner while auth is initializing
-  if (loading || !initialized) {
-    return (
-      <IonPage>
-        <IonContent className="ion-padding">
-          <div className="flex min-h-full items-center justify-center">
-            <IonSpinner name="crescent" />
-          </div>
-        </IonContent>
-      </IonPage>
-    );
-  }
-
   return (
     <Route
       {...rest}
-      render={(props) =>
-        requireAuth && !user ? (
-          <Redirect to={{ pathname: redirectTo, state: { from: props.location } }} />
-        ) : (
-          <Component {...props} />
-        )
-      }
+      render={(props) => {
+        // Show loading spinner while auth is initializing
+        if (loading || !initialized) {
+          return (
+            <IonPage>
+              <IonContent className="ion-padding">
+                <div className="flex min-h-full items-center justify-center">
+                  <IonSpinner name="crescent" />
+                </div>
+              </IonContent>
+            </IonPage>
+          );
+        }
+
+        // Redirect to login if not authenticated
+        if (requireAuth && !user) {
+          return <Redirect to={{ pathname: redirectTo, state: { from: props.location } }} />;
+        }
+
+        // Render component if authenticated
+        return <Component {...props} />;
+      }}
     />
   );
 };
