@@ -30,17 +30,35 @@ const useEmulator = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 if (useEmulator && import.meta.env.DEV) {
   console.log('🔥 Using Firebase Emulators');
   
-  // Auth Emulator
-  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  try {
+    // Auth Emulator - check if not already connected
+    if (!(auth as any)._canInitEmulator) {
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    }
+  } catch (error) {
+    // Already connected, ignore
+  }
   
-  // Firestore Emulator
-  connectFirestoreEmulator(db, 'localhost', 8080);
+  try {
+    // Firestore Emulator
+    connectFirestoreEmulator(db, 'localhost', 8080);
+  } catch (error) {
+    // Already connected, ignore
+  }
   
-  // Functions Emulator
-  connectFunctionsEmulator(functions, 'localhost', 5001);
+  try {
+    // Functions Emulator
+    connectFunctionsEmulator(functions, 'localhost', 5001);
+  } catch (error) {
+    // Already connected, ignore
+  }
   
   // Storage Emulator (optional, uncomment if needed)
-  // connectStorageEmulator(storage, 'localhost', 9199);
+  // try {
+  //   connectStorageEmulator(storage, 'localhost', 9199);
+  // } catch (error) {
+  //   // Already connected, ignore
+  // }
 }
 
 export default app;
