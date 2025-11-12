@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Users, UserPlus, UserCheck, UserX } from 'lucide-react';
-import { useHistory } from 'react-router-dom';
+import { NewClientModal } from './NewClientModal';
 
 export const ClientListPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const history = useHistory();
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
 
   // Mock data - will be replaced with real data from Firestore
   const clients = [];
@@ -30,7 +30,7 @@ export const ClientListPage: React.FC = () => {
             <p className="text-gray-500 mt-1">Gestiona tus clientes y sus invitaciones</p>
           </div>
           <Button
-            onClick={() => history.push('/clients/new')}
+            onClick={() => setShowNewClientModal(true)}
             className="w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -90,7 +90,7 @@ export const ClientListPage: React.FC = () => {
                 <p className="text-gray-500 mb-6">
                   Comienza agregando tu primer cliente
                 </p>
-                <Button onClick={() => history.push('/clients/new')}>
+                <Button onClick={() => setShowNewClientModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Agregar Cliente
                 </Button>
@@ -101,6 +101,12 @@ export const ClientListPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Client Modal */}
+      <NewClientModal
+        open={showNewClientModal}
+        onOpenChange={setShowNewClientModal}
+      />
     </DashboardLayout>
   );
 };

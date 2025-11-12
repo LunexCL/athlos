@@ -3,9 +3,11 @@ import { DashboardLayout } from '@/app/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
+import { NewAppointmentModal } from './NewAppointmentModal';
 
 export const CalendarPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
 
   // Mock data - will be replaced with real data
   const appointments = [];
@@ -61,7 +63,7 @@ export const CalendarPage: React.FC = () => {
             <Button variant="outline" onClick={goToToday}>
               Hoy
             </Button>
-            <Button>
+            <Button onClick={() => setShowNewAppointmentModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nueva Clase
             </Button>
@@ -158,7 +160,7 @@ export const CalendarPage: React.FC = () => {
                 <p className="text-gray-500 mb-6">
                   Comienza creando tu primera clase
                 </p>
-                <Button>
+                <Button onClick={() => setShowNewAppointmentModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Clase
                 </Button>
@@ -195,6 +197,12 @@ export const CalendarPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Appointment Modal */}
+      <NewAppointmentModal
+        open={showNewAppointmentModal}
+        onOpenChange={setShowNewAppointmentModal}
+      />
     </DashboardLayout>
   );
 };
