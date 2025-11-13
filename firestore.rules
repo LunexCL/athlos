@@ -31,30 +31,40 @@ service cloud.firestore {
     
     // Tenants collection
     match /tenants/{tenantId} {
-      // Only tenant members can read tenant data
+      // Only tenant members can read tenant data OR if user is the owner
       allow read: if belongsToTenant(tenantId) || 
                      (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
       // Allow create for authenticated users (new tenant creation)
       allow create: if isAuthenticated();
-      // Only tenant members can update
-      allow update: if belongsToTenant(tenantId) ||
-                      (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      // Allow update if user is the owner OR belongs to tenant
+      allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) ||
+                      belongsToTenant(tenantId);
       allow delete: if false; // Prevent deletion
       
       // Clients subcollection
       match /clients/{clientId} {
-        allow read: if belongsToTenant(tenantId);
-        allow create: if belongsToTenant(tenantId);
-        allow update: if belongsToTenant(tenantId);
-        allow delete: if belongsToTenant(tenantId);
+        // Allow access if user is owner OR belongs to tenant
+        allow read: if belongsToTenant(tenantId) || 
+                       (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow create: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow update: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow delete: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
       }
       
       // Appointments subcollection
       match /appointments/{appointmentId} {
-        allow read: if belongsToTenant(tenantId);
-        allow create: if belongsToTenant(tenantId);
-        allow update: if belongsToTenant(tenantId);
-        allow delete: if belongsToTenant(tenantId);
+        // Allow access if user is owner OR belongs to tenant
+        allow read: if belongsToTenant(tenantId) || 
+                       (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow create: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow update: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
+        allow delete: if belongsToTenant(tenantId) ||
+                         (isAuthenticated() && get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
       }
       
       // Availability subcollection

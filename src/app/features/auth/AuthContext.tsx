@@ -70,12 +70,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const userProfile = { id: userDoc.id, ...userDoc.data() } as unknown as User;
 
-        // Get tenant if user has tenantId in claims
+        // Get tenant - try from custom claims first, then from user document
         let tenant: Tenant | null = null;
-        if (customClaims.tenantId) {
-          const tenantDoc = await getDoc(doc(db, 'tenants', customClaims.tenantId as string));
-          if (tenantDoc.exists()) {
-            tenant = { id: tenantDoc.id, ...tenantDoc.data() } as unknown as Tenant;
+        const tenantIdFromClaims = customClaims.tenantId as string | undefined;
+        const tenantIdFromUser = userProfile.tenantId;
+        const tenantId = tenantIdFromClaims || tenantIdFromUser;
+        
+        if (tenantId) {
+          try {
+            const tenantDoc = await getDoc(doc(db, 'tenants', tenantId));
+            if (tenantDoc.exists()) {
+              tenant = { id: tenantDoc.id, ...tenantDoc.data() } as unknown as Tenant;
+            }
+          } catch (error) {
+            console.error('Error loading tenant:', error);
           }
         }
 

@@ -136,11 +136,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                   className={cn(
                     'w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
                     active
-                      ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                      : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={cn("h-5 w-5", active && "drop-shadow-sm")} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -170,8 +170,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       )}
 
       {/* Main Content */}
-      <main className="lg:pl-64 pt-16 lg:pt-0">
-        <div className="p-4 lg:p-8">
+      <main className="lg:pl-64 pt-16 lg:pt-0 h-screen overflow-y-auto">
+        <div className="p-4 lg:p-8 pb-20">
           {children}
         </div>
       </main>

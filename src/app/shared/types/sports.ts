@@ -12,6 +12,7 @@ export type SportType =
   | 'swimming'
   | 'cycling'
   | 'tennis'
+  | 'padel'
   | 'soccer'
   | 'basketball'
   | 'functional'
@@ -37,6 +38,7 @@ export const sportOptions: SportOption[] = [
   { value: 'swimming', label: 'Natación', icon: '🏊', color: 'bg-cyan-500' },
   { value: 'cycling', label: 'Ciclismo', icon: '🚴', color: 'bg-yellow-500' },
   { value: 'tennis', label: 'Tenis', icon: '🎾', color: 'bg-lime-500' },
+  { value: 'padel', label: 'Pádel', icon: '🎾', color: 'bg-sky-500' },
   { value: 'soccer', label: 'Fútbol', icon: '⚽', color: 'bg-emerald-500' },
   { value: 'basketball', label: 'Básquetbol', icon: '🏀', color: 'bg-amber-500' },
   { value: 'functional', label: 'Funcional', icon: '🏃‍♂️', color: 'bg-indigo-500' },

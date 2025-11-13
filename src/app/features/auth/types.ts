@@ -65,6 +65,9 @@ export interface TenantSettings {
   logo?: string;
   timezone?: string;
   currency?: 'CLP' | 'USD';
+  // Sports/Activities that the trainer offers
+  sports?: string[]; // Array of SportType
+  onboardingCompleted?: boolean;
   // Feature flags
   features?: {
     calendar?: boolean;

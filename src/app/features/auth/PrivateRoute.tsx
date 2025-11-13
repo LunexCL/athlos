@@ -12,6 +12,7 @@ interface PrivateRouteProps extends RouteProps {
 /**
  * Protected route that requires authentication
  * Redirects to login if user is not authenticated
+ * Redirects to onboarding if tenant hasn't completed onboarding
  */
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   component: Component,
@@ -19,7 +20,7 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
   redirectTo = '/login',
   ...rest
 }) => {
-  const { user, loading, initialized } = useAuth();
+  const { user, tenant, loading, initialized } = useAuth();
 
   return (
     <Route
@@ -40,6 +41,19 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({
         // Redirect to login if not authenticated
         if (requireAuth && !user) {
           return <Redirect to={{ pathname: redirectTo, state: { from: props.location } }} />;
+        }
+
+        // Check if onboarding is completed (except for onboarding page itself)
+        const isOnboardingPage = props.location.pathname === '/onboarding';
+        const onboardingCompleted = tenant?.settings?.onboardingCompleted ?? false;
+        
+        if (requireAuth && user && !isOnboardingPage && !onboardingCompleted) {
+          return <Redirect to="/onboarding" />;
+        }
+
+        // If onboarding is completed and user is on onboarding page, redirect to home
+        if (isOnboardingPage && onboardingCompleted) {
+          return <Redirect to="/home" />;
         }
 
         // Render component if authenticated

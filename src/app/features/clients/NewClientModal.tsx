@@ -2,27 +2,13 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Modal, ModalFooter } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { sportOptions } from '@/app/shared/types/sports';
-import { Mail, Phone, User, Activity } from 'lucide-react';
+import { Mail, Phone, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useClients } from './hooks/useClients';
 
 const clientSchema = z.object({
   name: z
@@ -38,7 +24,6 @@ const clientSchema = z.object({
     .min(8, 'El teléfono debe tener al menos 8 dígitos')
     .optional()
     .or(z.literal('')),
-  primarySport: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -54,6 +39,7 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
   onOpenChange,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const { addClient } = useClients();
 
   const {
     register,
@@ -68,8 +54,12 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
   const onSubmit = async (data: ClientFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Implementar guardado en Firestore
-      console.log('Nuevo cliente:', data);
+      await addClient({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        notes: data.notes,
+      });
       
       toast.success('Cliente agregado', {
         description: `${data.name} ha sido agregado exitosamente`,
@@ -88,137 +78,103 @@ export const NewClientModal: React.FC<NewClientModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">Nuevo Cliente</DialogTitle>
-          <DialogDescription>
-            Agrega un nuevo cliente a tu lista
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="name">
-              Nombre Completo <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="name"
-                placeholder="Juan Pérez"
-                {...register('name')}
-                disabled={isLoading}
-                className="pl-10"
-              />
-            </div>
-            {errors.name && (
-              <p className="text-sm text-red-500">{errors.name.message}</p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <Label htmlFor="email">
-              Correo Electrónico <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="juan@ejemplo.com"
-                {...register('email')}
-                disabled={isLoading}
-                className="pl-10"
-              />
-            </div>
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
-            )}
-          </div>
-
-          {/* Phone */}
-          <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+56 9 1234 5678"
-                {...register('phone')}
-                disabled={isLoading}
-                className="pl-10"
-              />
-            </div>
-            {errors.phone && (
-              <p className="text-sm text-red-500">{errors.phone.message}</p>
-            )}
-          </div>
-
-          {/* Primary Sport/Activity */}
-          <div className="space-y-2">
-            <Label htmlFor="primarySport">
-              Actividad Principal <span className="text-gray-400">(opcional)</span>
-            </Label>
-            <Select
-              onValueChange={(value) => setValue('primarySport', value)}
+    <Modal
+      isOpen={open}
+      onClose={() => onOpenChange(false)}
+      title="Nuevo Cliente"
+      description="Agrega un nuevo cliente a tu lista"
+      size="lg"
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Name */}
+        <div className="space-y-2">
+          <Label htmlFor="name">
+            Nombre Completo <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              id="name"
+              placeholder="Juan Pérez"
+              {...register('name')}
               disabled={isLoading}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona la actividad principal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">
-                  <span className="text-gray-500">Sin especificar</span>
-                </SelectItem>
-                {sportOptions.map((sport) => (
-                  <SelectItem key={sport.value} value={sport.value}>
-                    <div className="flex items-center">
-                      <span className="mr-2">{sport.icon}</span>
-                      {sport.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-gray-500">
-              Puedes asignar diferentes actividades en cada clase
-            </p>
-          </div>
-
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">
-              Notas <span className="text-gray-400">(opcional)</span>
-            </Label>
-            <textarea
-              id="notes"
-              {...register('notes')}
-              disabled={isLoading}
-              rows={3}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Información adicional, objetivos, restricciones médicas, etc."
+              className="pl-10"
             />
           </div>
+          {errors.name && (
+            <p className="text-sm text-red-500">{errors.name.message}</p>
+          )}
+        </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
+        {/* Email */}
+        <div className="space-y-2">
+          <Label htmlFor="email">
+            Correo Electrónico <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              id="email"
+              type="email"
+              placeholder="juan@ejemplo.com"
+              {...register('email')}
               disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Agregando...' : 'Agregar Cliente'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              className="pl-10"
+            />
+          </div>
+          {errors.email && (
+            <p className="text-sm text-red-500">{errors.email.message}</p>
+          )}
+        </div>
+
+        {/* Phone */}
+        <div className="space-y-2">
+          <Label htmlFor="phone">Teléfono</Label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+56 9 1234 5678"
+              {...register('phone')}
+              disabled={isLoading}
+              className="pl-10"
+            />
+          </div>
+          {errors.phone && (
+            <p className="text-sm text-red-500">{errors.phone.message}</p>
+          )}
+        </div>
+
+        {/* Notes */}
+        <div className="space-y-2">
+          <Label htmlFor="notes">
+            Notas <span className="text-gray-400">(opcional)</span>
+          </Label>
+          <textarea
+            id="notes"
+            {...register('notes')}
+            disabled={isLoading}
+            rows={3}
+            className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+            placeholder="Información adicional, objetivos, restricciones médicas, etc."
+          />
+        </div>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? 'Agregando...' : 'Agregar Cliente'}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 };
