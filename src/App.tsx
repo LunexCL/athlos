@@ -10,6 +10,7 @@ import { CalendarPage } from './app/features/calendar/CalendarPage';
 import { RecurringClassesPage } from './app/features/calendar/RecurringClassesPage';
 import { AvailabilitySettings } from './app/features/calendar/AvailabilitySettings';
 import { ClientListPage } from './app/features/clients/ClientListPage';
+import { PaymentSettingsPage } from './app/features/payments/PaymentSettingsPage';
 import { OnboardingPage } from './app/features/onboarding/OnboardingPage';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -31,6 +32,7 @@ const App: React.FC = () => (
         <PrivateRoute exact path="/recurring-classes" component={RecurringClassesPage} />
         <PrivateRoute exact path="/availability" component={AvailabilitySettings} />
         <PrivateRoute exact path="/clients" component={ClientListPage} />
+        <PrivateRoute exact path="/payment-settings" component={PaymentSettingsPage} />
 
         {/* Default Redirect - go to login */}
         <Route exact path="/">

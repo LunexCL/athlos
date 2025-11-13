@@ -40,7 +40,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { label: 'Disponibilidad', icon: Settings, path: '/availability' },
     { label: 'Clientes', icon: Users, path: '/clients' },
     { label: 'Rutinas', icon: Dumbbell, path: '/routines' },
-    { label: 'Pagos', icon: CreditCard, path: '/payments' },
+    { label: 'Configuración de Pagos', icon: CreditCard, path: '/payment-settings' },
   ];
 
   const handleLogout = async () => {

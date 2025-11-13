@@ -81,12 +81,14 @@ service cloud.firestore {
         allow delete: if canManageAvailability();
       }
       
+      // Payment Configuration subcollection
+      match /paymentConfig/{configId} {
+        allow read, create, update, delete: if belongsToTenant(tenantId);
+      }
+      
       // Payments subcollection
       match /payments/{paymentId} {
-        allow read: if belongsToTenant(tenantId);
-        allow create: if belongsToTenant(tenantId);
-        allow update: if false; // Payments are immutable after creation
-        allow delete: if false;
+        allow read, create, update, delete: if belongsToTenant(tenantId);
       }
       
       // Routines subcollection

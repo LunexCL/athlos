@@ -1,0 +1,33 @@
+rules_version = '2';
+
+// Firebase Storage rules for payment proofs
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to check tenant ownership
+    function belongsToTenant(tenantId) {
+      return isAuthenticated() && 
+             (request.auth.token.tenantId == tenantId || 
+              firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.tenantId == tenantId);
+    }
+    
+    // Payment proofs storage
+    match /tenants/{tenantId}/payment-proofs/{proofId} {
+      // Allow read if user belongs to tenant
+      allow read: if belongsToTenant(tenantId);
+      
+      // Allow upload if user belongs to tenant and file is under 5MB
+      allow write: if belongsToTenant(tenantId) && 
+                      request.resource.size < 5 * 1024 * 1024 && // 5MB max
+                      request.resource.contentType.matches('image/.*'); // Only images
+      
+      // Allow delete if user belongs to tenant
+      allow delete: if belongsToTenant(tenantId);
+    }
+  }
+}
