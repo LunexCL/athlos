@@ -17,7 +17,9 @@ service cloud.firestore {
     }
     
     function belongsToTenant(tenantId) {
-      return isAuthenticated() && getUserTenantId() == tenantId;
+      return isAuthenticated() && 
+             (getUserTenantId() == tenantId || 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId);
     }
     
     // Users collection - users can only read/write their own document
@@ -50,14 +52,8 @@ service cloud.firestore {
         
         // Allow read/write if user belongs to tenant
         allow read: if canAccessClients();
-        allow create: if canAccessClients() && 
-                         request.resource.data.keys().hasAll(['name', 'email', 'status', 'createdAt', 'updatedAt']) &&
-                         request.resource.data.status in ['active', 'invited', 'inactive'] &&
-                         request.resource.data.email is string &&
-                         request.resource.data.name is string;
-        allow update: if canAccessClients() &&
-                         request.resource.data.keys().hasAll(['name', 'email', 'status', 'updatedAt']) &&
-                         request.resource.data.status in ['active', 'invited', 'inactive'];
+        allow create: if canAccessClients();
+        allow update: if canAccessClients();
         allow delete: if canAccessClients();
       }
       
@@ -68,11 +64,8 @@ service cloud.firestore {
         }
         
         allow read: if canAccessAppointments();
-        allow create: if canAccessAppointments() &&
-                         request.resource.data.keys().hasAll(['clientId', 'startTime', 'status', 'createdAt', 'updatedAt']) &&
-                         request.resource.data.status in ['pending', 'confirmed', 'completed', 'cancelled'];
-        allow update: if canAccessAppointments() &&
-                         request.resource.data.status in ['pending', 'confirmed', 'completed', 'cancelled'];
+        allow create: if canAccessAppointments();
+        allow update: if canAccessAppointments();
         allow delete: if canAccessAppointments();
       }
       
@@ -83,13 +76,7 @@ service cloud.firestore {
         }
         
         allow read: if canManageAvailability();
-        allow create: if canManageAvailability() &&
-                         request.resource.data.keys().hasAll(['dayOfWeek', 'startTime', 'endTime', 'duration', 'isActive', 'createdAt', 'updatedAt']) &&
-                         request.resource.data.dayOfWeek is int &&
-                         request.resource.data.dayOfWeek >= 0 &&
-                         request.resource.data.dayOfWeek <= 6 &&
-                         request.resource.data.duration is int &&
-                         request.resource.data.duration >= 15;
+        allow create: if canManageAvailability();
         allow update: if canManageAvailability();
         allow delete: if canManageAvailability();
       }

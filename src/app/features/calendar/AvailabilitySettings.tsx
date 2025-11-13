@@ -2,20 +2,21 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { DashboardLayout } from '@/app/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Clock, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAvailability } from './hooks/useAvailability';
 import { Availability } from './types';
 
 const availabilitySchema = z.object({
-  dayOfWeek: z.number().min(0).max(6),
+  selectedDays: z.array(z.number()).min(1, 'Selecciona al menos un día'),
   startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:mm'),
   endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato HH:mm'),
-  duration: z.number().min(15).max(480), // 15 min to 8 hours
+  selectedDurations: z.array(z.number()).min(1, 'Selecciona al menos una duración'),
 }).refine(data => data.endTime > data.startTime, {
   message: 'La hora de fin debe ser mayor que la de inicio',
   path: ['endTime'],
@@ -33,9 +34,17 @@ const daysOfWeek = [
   { value: 6, label: 'Sábado' },
 ];
 
+const durationOptions = [
+  { value: 60, label: '60 minutos (1 hora)' },
+  { value: 90, label: '90 minutos (1.5 horas)' },
+  { value: 120, label: '120 minutos (2 horas)' },
+];
+
 export const AvailabilitySettings: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedDurations, setSelectedDurations] = useState<number[]>([]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const { availabilities, loading, addAvailability, deleteAvailability, updateAvailability } = useAvailability();
 
   const {
@@ -44,32 +53,91 @@ export const AvailabilitySettings: React.FC = () => {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<AvailabilityFormData>({
     resolver: zodResolver(availabilitySchema),
     defaultValues: {
-      dayOfWeek: 1,
+      selectedDays: [],
       startTime: '09:00',
       endTime: '18:00',
-      duration: 60,
+      selectedDurations: [60],
     },
   });
+
+  const toggleDay = (day: number) => {
+    const newSelection = selectedDays.includes(day)
+      ? selectedDays.filter(d => d !== day)
+      : [...selectedDays, day].sort();
+    setSelectedDays(newSelection);
+    setValue('selectedDays', newSelection);
+  };
+
+  const selectWeekdays = () => {
+    const weekdays = [1, 2, 3, 4, 5]; // Lun-Vie
+    setSelectedDays(weekdays);
+    setValue('selectedDays', weekdays);
+  };
+
+  const selectWeekend = () => {
+    const weekend = [0, 6]; // Dom-Sáb
+    setSelectedDays(weekend);
+    setValue('selectedDays', weekend);
+  };
+
+  const clearDays = () => {
+    setSelectedDays([]);
+    setValue('selectedDays', []);
+  };
+
+  const toggleDuration = (duration: number) => {
+    const newSelection = selectedDurations.includes(duration)
+      ? selectedDurations.filter(d => d !== duration)
+      : [...selectedDurations, duration].sort();
+    setSelectedDurations(newSelection);
+    setValue('selectedDurations', newSelection);
+  };
+
+  const selectAllDurations = () => {
+    const allDurations = durationOptions.map(d => d.value);
+    setSelectedDurations(allDurations);
+    setValue('selectedDurations', allDurations);
+  };
+
+  const clearDurations = () => {
+    setSelectedDurations([]);
+    setValue('selectedDurations', []);
+  };
 
   const onSubmit = async (data: AvailabilityFormData) => {
     setIsLoading(true);
     try {
-      await addAvailability({
-        dayOfWeek: data.dayOfWeek,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        duration: data.duration,
-        isActive: true,
-      });
+      // Crear disponibilidad para cada combinación de día y duración
+      for (const dayOfWeek of data.selectedDays) {
+        for (const duration of data.selectedDurations) {
+          await addAvailability({
+            dayOfWeek,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            duration,
+            isActive: true,
+          });
+        }
+      }
+      
+      const daysNames = data.selectedDays
+        .map(d => daysOfWeek.find(day => day.value === d)?.label)
+        .join(', ');
+      const durationsText = data.selectedDurations
+        .map(d => durationOptions.find(opt => opt.value === d)?.label)
+        .join(', ');
       
       toast.success('Disponibilidad agregada', {
-        description: `Horario configurado para ${daysOfWeek.find(d => d.value === data.dayOfWeek)?.label}`,
+        description: `${data.selectedDays.length} días × ${data.selectedDurations.length} duraciones = ${data.selectedDays.length * data.selectedDurations.length} bloques creados`,
       });
       
       reset();
+      setSelectedDays([]);
+      setSelectedDurations([]);
       setIsAdding(false);
     } catch (error) {
       console.error('Error al agregar disponibilidad:', error);
@@ -114,14 +182,15 @@ export const AvailabilitySettings: React.FC = () => {
   }));
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Disponibilidad</h2>
-          <p className="text-gray-500 mt-1">Configura tus horarios disponibles para clases</p>
-        </div>
-        <Button onClick={() => setIsAdding(!isAdding)}>
+    <DashboardLayout>
+      <div className="p-6 max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Disponibilidad</h2>
+            <p className="text-gray-500 mt-1">Configura tus horarios disponibles para clases</p>
+          </div>
+          <Button onClick={() => setIsAdding(!isAdding)}>
           {isAdding ? 'Cancelar' : <><Plus className="h-4 w-4 mr-2" />Agregar Horario</>}
         </Button>
       </div>
@@ -135,42 +204,111 @@ export const AvailabilitySettings: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Day Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Selecciona los días</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={selectWeekdays}
+                      className="text-xs"
+                    >
+                      Lun-Vie
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={selectWeekend}
+                      className="text-xs"
+                    >
+                      Fin de semana
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearDays}
+                      className="text-xs"
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-7 gap-2">
+                  {daysOfWeek.map(day => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleDay(day.value)}
+                      className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                        selectedDays.includes(day.value)
+                          ? 'border-blue-500 bg-blue-500 text-white'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="text-xs">{day.label.substring(0, 3)}</div>
+                    </button>
+                  ))}
+                </div>
+                {errors.selectedDays && (
+                  <p className="text-sm text-red-500">{errors.selectedDays.message}</p>
+                )}
+              </div>
+
+              {/* Duration Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Duraciones de clase disponibles</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllDurations}
+                      className="text-xs"
+                    >
+                      Todas
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearDurations}
+                      className="text-xs"
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {durationOptions.map(duration => (
+                    <button
+                      key={duration.value}
+                      type="button"
+                      onClick={() => toggleDuration(duration.value)}
+                      className={`p-4 rounded-lg border-2 text-sm font-medium transition-all ${
+                        selectedDurations.includes(duration.value)
+                          ? 'border-green-500 bg-green-500 text-white'
+                          : 'border-gray-300 bg-white text-gray-700 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="text-base font-semibold">{duration.value} min</div>
+                      <div className="text-xs opacity-80">{duration.label.split(' ').slice(1).join(' ')}</div>
+                    </button>
+                  ))}
+                </div>
+                {errors.selectedDurations && (
+                  <p className="text-sm text-red-500">{errors.selectedDurations.message}</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Day of Week */}
-                <div className="space-y-2">
-                  <Label htmlFor="dayOfWeek">Día de la Semana</Label>
-                  <select
-                    id="dayOfWeek"
-                    {...register('dayOfWeek', { valueAsNumber: true })}
-                    disabled={isLoading}
-                    className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {daysOfWeek.map(day => (
-                      <option key={day.value} value={day.value}>
-                        {day.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.dayOfWeek && (
-                    <p className="text-sm text-red-500">{errors.dayOfWeek.message}</p>
-                  )}
-                </div>
-
-                {/* Duration */}
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duración por Clase (minutos)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    placeholder="60"
-                    {...register('duration', { valueAsNumber: true })}
-                    disabled={isLoading}
-                  />
-                  {errors.duration && (
-                    <p className="text-sm text-red-500">{errors.duration.message}</p>
-                  )}
-                </div>
-
                 {/* Start Time */}
                 <div className="space-y-2">
                   <Label htmlFor="startTime">Hora de Inicio</Label>
@@ -307,5 +445,6 @@ export const AvailabilitySettings: React.FC = () => {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 };

@@ -71,8 +71,11 @@ export const useAvailability = () => {
     const now = Timestamp.now();
 
     const newAvailability = {
-      ...availabilityData,
-      tenantId: tenant.id,
+      dayOfWeek: availabilityData.dayOfWeek,
+      startTime: availabilityData.startTime,
+      endTime: availabilityData.endTime,
+      duration: availabilityData.duration,
+      isActive: availabilityData.isActive,
       createdAt: now,
       updatedAt: now,
     };
