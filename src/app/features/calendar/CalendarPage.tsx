@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { DashboardLayout } from '@/app/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Plus, Users } from 'lucide-react';
 import { NewAppointmentModal } from './NewAppointmentModal';
 import { AppointmentDetailModal } from './AppointmentDetailModal';
 import { SetupRequirementBanner } from './SetupRequirementBanner';
@@ -254,13 +254,23 @@ export const CalendarPage: React.FC = () => {
                                 <span className="text-xs font-medium text-gray-600">
                                   {apt.startTime}
                                 </span>
+                                {apt.academyId && (
+                                  <Users className="w-3 h-3 text-purple-600 ml-auto" />
+                                )}
                               </div>
                               <p className="text-sm font-medium text-gray-900 truncate">
                                 {apt.clientName}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {apt.duration} min
-                              </p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-gray-500">
+                                  {apt.duration} min
+                                </p>
+                                {apt.academyId && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">
+                                    Academia
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

@@ -9,6 +9,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  where,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
@@ -151,12 +153,30 @@ export const useAcademies = () => {
     }
   };
 
-  const deleteAcademy = async (id: string) => {
+  const deleteAcademy = async (id: string, deleteFutureAppointments: boolean = true) => {
     if (!tenant?.id) {
       throw new Error('No tenant ID');
     }
 
     try {
+      // First, optionally delete future appointments
+      if (deleteFutureAppointments) {
+        const today = new Date().toISOString().split('T')[0];
+        const appointmentsRef = collection(db, 'tenants', tenant.id, 'appointments');
+        const q = query(
+          appointmentsRef,
+          where('academyId', '==', id),
+          where('date', '>=', today)
+        );
+        
+        const snapshot = await getDocs(q);
+        console.log(`🗑️ Deleting ${snapshot.size} future appointments for academy ${id}`);
+        
+        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+      }
+
+      // Then delete the academy
       const academyRef = doc(db, 'tenants', tenant.id, 'academies', id);
       await deleteDoc(academyRef);
       console.log('✅ Academy deleted:', id);

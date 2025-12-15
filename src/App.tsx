@@ -13,9 +13,11 @@ import { ClientListPage } from './app/features/clients/ClientListPage';
 import { PaymentSettingsPage } from './app/features/payments/PaymentSettingsPage';
 import { PublicPaymentPage } from './app/features/payments/PublicPaymentPage';
 import { OnboardingPage } from './app/features/onboarding/OnboardingPage';
+import { SelectSportPage } from './app/features/onboarding/SelectSportPage';
 import { AcademiesPage } from './app/features/academies/AcademiesPage';
 import { ExercisesPage } from './app/features/academies/ExercisesPage';
 import { CoachAssignmentsPage } from './app/features/academies/CoachAssignmentsPage';
+import { AcademyDetailPage } from './app/features/academies/AcademyDetailPage';
 import { Toaster } from '@/components/ui/sonner';
 
 const App: React.FC = () => (
@@ -30,6 +32,7 @@ const App: React.FC = () => (
 
         {/* Onboarding Route (requires auth but not onboarding completion) */}
         <PrivateRoute exact path="/onboarding" component={OnboardingPage} />
+        <PrivateRoute exact path="/select-sport" component={SelectSportPage} />
 
         {/* Private Routes */}
         <PrivateRoute exact path="/home" component={HomePage} />
@@ -41,6 +44,7 @@ const App: React.FC = () => (
         
         {/* Academies/Grupos Routes */}
         <PrivateRoute exact path="/academies" component={AcademiesPage} />
+        <PrivateRoute exact path="/academies/:academyId" component={AcademyDetailPage} />
         <PrivateRoute exact path="/exercises" component={ExercisesPage} />
         <PrivateRoute exact path="/coach-assignments" component={CoachAssignmentsPage} />
 

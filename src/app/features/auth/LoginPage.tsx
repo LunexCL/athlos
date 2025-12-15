@@ -123,8 +123,9 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-12">
-      <Card className="w-full max-w-md shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-8 overflow-y-auto">
+      <div className="max-w-md mx-auto">
+        <Card className="w-full shadow-lg mb-8">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold text-center">
                 Iniciar sesión
@@ -266,5 +267,6 @@ export const LoginPage: React.FC = () => {
             </form>
           </Card>
         </div>
+      </div>
   );
 };

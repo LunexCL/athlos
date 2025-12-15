@@ -32,7 +32,6 @@ const registerSchema = z.object({
     .string()
     .min(2, 'El nombre del negocio debe tener al menos 2 caracteres')
     .max(100, 'El nombre del negocio es demasiado largo'),
-  businessType: z.enum(['gym', 'clinic', 'personal_training', 'other']).optional(),
   acceptTerms: z
     .boolean()
     .refine((val) => val === true, 'Debes aceptar los términos y condiciones'),
@@ -55,7 +54,6 @@ export const RegisterPage: React.FC = () => {
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      businessType: 'other',
       acceptTerms: false,
     },
   });
@@ -82,7 +80,6 @@ export const RegisterPage: React.FC = () => {
         email: data.email,
         displayName: data.displayName,
         businessName: data.businessName,
-        businessType: data.businessType,
       });
       console.log('✅ Firestore documents created:', result);
 
@@ -92,9 +89,9 @@ export const RegisterPage: React.FC = () => {
         message: 'Tu cuenta ha sido creada correctamente',
       });
 
-      // Redirect to home (AuthContext will load user data)
-      console.log('3️⃣ Redirecting to home...');
-      history.push('/home');
+      // Redirect to sport selection
+      console.log('3️⃣ Redirecting to sport selection...');
+      history.push('/select-sport');
     } catch (error: any) {
       console.error('❌ Registration error:', error);
       console.error('Error details:', {
@@ -143,8 +140,8 @@ export const RegisterPage: React.FC = () => {
         message: 'Has iniciado sesión correctamente',
       });
 
-      console.log('3️⃣ Redirecting to home...');
-      history.push('/home');
+      console.log('3️⃣ Redirecting to sport selection...');
+      history.push('/select-sport');
     } catch (error: any) {
       console.error('❌ Google sign in error:', error);
       console.error('Error details:', {
@@ -168,8 +165,9 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-12">
-      <Card className="w-full max-w-md shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-8 overflow-y-auto">
+      <div className="max-w-md mx-auto">
+        <Card className="w-full shadow-lg mb-8">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold text-center">
                 Crear cuenta
@@ -228,22 +226,6 @@ export const RegisterPage: React.FC = () => {
                   {errors.businessName && (
                     <p className="text-sm text-red-500">{errors.businessName.message}</p>
                   )}
-                </div>
-
-                {/* Business Type */}
-                <div className="space-y-2">
-                  <Label htmlFor="businessType">Tipo de negocio</Label>
-                  <select
-                    id="businessType"
-                    {...register('businessType')}
-                    disabled={isLoading}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="gym">Gimnasio</option>
-                    <option value="clinic">Clínica/Kinesiología</option>
-                    <option value="personal_training">Entrenamiento Personal</option>
-                    <option value="other">Otro</option>
-                  </select>
                 </div>
 
                 {/* Password */}
@@ -377,5 +359,6 @@ export const RegisterPage: React.FC = () => {
             </form>
           </Card>
         </div>
+      </div>
   );
 };

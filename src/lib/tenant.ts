@@ -1,12 +1,13 @@
-import { doc, setDoc, collection, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, serverTimestamp, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import type { SportType } from '@/app/shared/types/sports';
 
 export interface CreateTenantData {
   userId: string;
   email: string;
   displayName: string;
   businessName: string;
-  businessType?: 'gym' | 'clinic' | 'personal_training' | 'other';
+  businessType?: SportType;
 }
 
 /**
@@ -78,3 +79,38 @@ export const createTenantAndUser = async (data: CreateTenantData) => {
     throw error;
   }
 };
+
+/**
+ * Update tenant document
+ */
+export const updateTenant = async (tenantId: string, data: Partial<{
+  businessType: SportType;
+  businessName: string;
+  [key: string]: any;
+}>) => {
+  console.log('🔥 updateTenant called:', { tenantId, data });
+  
+  try {
+    const tenantRef = doc(db, 'tenants', tenantId);
+    
+    const updateData: any = {
+      updatedAt: serverTimestamp(),
+    };
+
+    // Update top-level or nested fields
+    if (data.businessType) {
+      updateData['settings.businessType'] = data.businessType;
+    }
+    if (data.businessName) {
+      updateData.name = data.businessName;
+      updateData['settings.businessName'] = data.businessName;
+    }
+
+    await updateDoc(tenantRef, updateData);
+    console.log('✅ Tenant updated successfully');
+  } catch (error) {
+    console.error('❌ Error updating tenant:', error);
+    throw error;
+  }
+};
+

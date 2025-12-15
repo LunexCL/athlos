@@ -14,10 +14,13 @@ import {
   Trash2,
   Edit,
   AlertTriangle,
-  Dumbbell
+  Dumbbell,
+  Users,
+  MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useExercises } from '@/app/features/academies/hooks/useExercises';
+import { useAcademies } from '@/app/features/academies/hooks/useAcademies';
 
 interface AppointmentDetailModalProps {
   open: boolean;
@@ -34,8 +37,12 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { updateAppointment, deleteAppointment } = useAppointments();
   const { exercises } = useExercises();
+  const { academies } = useAcademies();
 
   const sport = appointment ? sportOptions.find(s => s.value === appointment.sportType) : null;
+  const academy = appointment?.academyId 
+    ? academies.find(a => a.id === appointment.academyId) 
+    : null;
   
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -151,9 +158,17 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
               <span className="text-3xl">{sport?.icon || '📅'}</span>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900">
-                {sport?.label || appointment.sportType}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  {sport?.label || appointment.sportType}
+                </h3>
+                {appointment.academyId && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    <Users className="w-3 h-3" />
+                    Academia
+                  </span>
+                )}
+              </div>
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-1 ${getStatusColor(appointment.status)}`}>
                 {getStatusLabel(appointment.status)}
               </span>
@@ -163,6 +178,27 @@ export const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
 
         {/* Información de la clase */}
         <div className="space-y-4">
+          {/* Academia Info */}
+          {academy && (
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="flex items-start gap-3">
+                <Users className="h-5 w-5 text-purple-600 mt-0.5" />
+                <div className="flex-1">
+                  <Label className="text-purple-900 font-semibold">Academia: {academy.name}</Label>
+                  {appointment.courtId && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <MapPin className="h-4 w-4 text-purple-600" />
+                      <p className="text-sm text-purple-700">Cancha #{appointment.courtId}</p>
+                    </div>
+                  )}
+                  <div className="mt-2 text-sm text-purple-600">
+                    <p>💰 Cancha: ${academy.courtPrice.toLocaleString()} | Por alumno: ${academy.pricePerStudent.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Cliente */}
           <div className="flex items-start gap-3">
             <User className="h-5 w-5 text-gray-400 mt-0.5" />

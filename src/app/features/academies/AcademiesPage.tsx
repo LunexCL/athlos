@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import { DashboardLayout } from '@/app/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAcademies } from './hooks/useAcademies';
 import { sportOptions } from '@/app/shared/types/sports';
-import { GraduationCap, Plus, Users, MapPin } from 'lucide-react';
+import { GraduationCap, Plus, Users, MapPin, ChevronRight } from 'lucide-react';
 import { NewAcademyModal } from './NewAcademyModal';
 
 export const AcademiesPage: React.FC = () => {
+  const history = useHistory();
   const { academies, loading } = useAcademies();
   const [showNewModal, setShowNewModal] = useState(false);
 
@@ -54,7 +56,10 @@ export const AcademiesPage: React.FC = () => {
                 <p className="text-gray-600 mb-4">
                   Comienza creando tu primera academia para gestionar grupos de alumnos
                 </p>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setShowNewModal(true)}
+                >
                   <Plus className="h-5 w-5 mr-2" />
                   Crear Primera Academia
                 </Button>
@@ -67,7 +72,11 @@ export const AcademiesPage: React.FC = () => {
               const sport = sportOptions.find(s => s.value === academy.sportType);
               
               return (
-                <Card key={academy.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                <Card 
+                  key={academy.id} 
+                  className="hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => history.push(`/academies/${academy.id}`)}
+                >
                   <CardHeader className={`${sport?.color || 'bg-gray-500'} text-white`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -79,6 +88,7 @@ export const AcademiesPage: React.FC = () => {
                           </CardDescription>
                         </div>
                       </div>
+                      <ChevronRight className="h-5 w-5 text-white/80" />
                     </div>
                   </CardHeader>
                   <CardContent className="pt-4">

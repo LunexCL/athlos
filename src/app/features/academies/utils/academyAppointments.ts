@@ -1,4 +1,4 @@
-import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { addDoc, collection, Timestamp, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Academy, AcademySchedule } from '../types';
 
@@ -100,14 +100,17 @@ function generateDatesFromSchedule(schedule: AcademySchedule): string[] {
 }
 
 /**
- * Elimina todos los appointments futuros asociados a una academia
+ * Elimina todos los appointments asociados a una academia
+ * @param academyId - ID de la academia
+ * @param deleteAll - Si es true, elimina todos. Si es false, solo los futuros
  */
 export const deleteAcademyAppointments = async (
-  tenantId: string,
-  academyId: string
+  academyId: string,
+  deleteAll: boolean = false
 ): Promise<number> => {
-  // Esta funcionalidad se implementará cuando sea necesario eliminar una academia
-  // Por ahora, retornamos 0
   console.log('🗑️ Deleting appointments for academy:', academyId);
-  return 0;
+  
+  // Note: Esta función necesita el tenantId del contexto
+  // Por ahora, lanzamos un error si se intenta usar
+  throw new Error('deleteAcademyAppointments needs to be called from a hook with tenant context');
 };
