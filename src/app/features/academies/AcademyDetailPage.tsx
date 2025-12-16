@@ -21,6 +21,7 @@ import { useAcademies } from './hooks/useAcademies';
 import { useExercises } from './hooks/useExercises';
 import { useClients } from '../clients/hooks/useClients';
 import { useAppointments } from '../calendar/hooks/useAppointments';
+import { EditAcademyModal } from './EditAcademyModal';
 import { toast } from 'sonner';
 import { sportOptions } from '@/app/shared/types/sports';
 
@@ -31,6 +32,7 @@ export const AcademyDetailPage: React.FC = () => {
   const { exercises } = useExercises();
   const { clients } = useClients();
   const { appointments } = useAppointments();
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -63,8 +65,7 @@ export const AcademyDetailPage: React.FC = () => {
   };
 
   const handleEdit = () => {
-    toast.info('Función de edición en desarrollo');
-    // TODO: Implementar EditAcademyModal
+    setShowEditModal(true);
   };
 
   const handleDelete = () => {
@@ -442,6 +443,15 @@ export const AcademyDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Edit Academy Modal */}
+      {academy && (
+        <EditAcademyModal
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          academy={academy}
+        />
       )}
     </DashboardLayout>
   );

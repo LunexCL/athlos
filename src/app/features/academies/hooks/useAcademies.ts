@@ -15,7 +15,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
 import { Academy, CreateAcademyData } from '../types';
-import { generateAppointmentsFromAcademy } from '../utils/academyAppointments';
+import { generateAppointmentsFromAcademy, deleteAcademyAppointments } from '../utils/academyAppointments';
 
 export const useAcademies = () => {
   const [academies, setAcademies] = useState<Academy[]>([]);
@@ -78,9 +78,11 @@ export const useAcademies = () => {
     }
 
     // Validations
-    if (data.numberOfCourts >= 2 && data.courts.length < 2) {
-      throw new Error('NEED_AT_LEAST_TWO_COACHES_FOR_MULTIPLE_COURTS');
-    }
+    // Nota: Validación de múltiples coaches comentada temporalmente
+    // hasta implementar sistema completo de gestión de coaches
+    // if (data.numberOfCourts >= 2 && data.courts.length < 2) {
+    //   throw new Error('NEED_AT_LEAST_TWO_COACHES_FOR_MULTIPLE_COURTS');
+    // }
 
     // Validate max clients per court (padel = 4)
     const maxClientsPerCourt = data.sportType === 'padel' ? 4 : 6;
@@ -159,24 +161,15 @@ export const useAcademies = () => {
     }
 
     try {
-      // First, optionally delete future appointments
+      console.log('🗑️ Deleting academy:', id, { deleteFutureAppointments });
+
+      // Delete associated appointments using utility function
       if (deleteFutureAppointments) {
-        const today = new Date().toISOString().split('T')[0];
-        const appointmentsRef = collection(db, 'tenants', tenant.id, 'appointments');
-        const q = query(
-          appointmentsRef,
-          where('academyId', '==', id),
-          where('date', '>=', today)
-        );
-        
-        const snapshot = await getDocs(q);
-        console.log(`🗑️ Deleting ${snapshot.size} future appointments for academy ${id}`);
-        
-        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-        await Promise.all(deletePromises);
+        const deletedCount = await deleteAcademyAppointments(tenant.id, id, false);
+        console.log(`✅ Deleted ${deletedCount} future appointments`);
       }
 
-      // Then delete the academy
+      // Then delete the academy document
       const academyRef = doc(db, 'tenants', tenant.id, 'academies', id);
       await deleteDoc(academyRef);
       console.log('✅ Academy deleted:', id);

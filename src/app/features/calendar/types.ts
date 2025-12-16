@@ -19,10 +19,18 @@ export interface Appointment {
   id: string;
   tenantId: string;
   clientId: string;
+  clientName?: string; // Denormalizado para mostrar en UI
   instructorId: string;
-  startTime: Date;
-  endTime: Date;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  sportType?: string; // Tipo de deporte de la cita
+  date?: string; // YYYY-MM-DD format
+  startTime: Date | string; // Date object o HH:mm format
+  endTime: Date | string; // Date object o HH:mm format
+  duration?: number; // Duración en minutos
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'scheduled' | 'no-show';
+  isPaid?: boolean; // Estado de pago
+  academyId?: string; // ID de la academia si es clase grupal
+  courtId?: string; // ID de la cancha dentro de la academia
+  exerciseIds?: string[]; // IDs de ejercicios asignados
   notes?: string;
   googleEventId?: string | null;
   recurringGroupId?: string | null; // ID del grupo de clases recurrentes
@@ -55,4 +63,4 @@ export interface TimeSlot {
   appointmentId?: string;
 }
 
-export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'scheduled' | 'no-show';

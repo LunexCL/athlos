@@ -101,16 +101,47 @@ function generateDatesFromSchedule(schedule: AcademySchedule): string[] {
 
 /**
  * Elimina todos los appointments asociados a una academia
+ * @param tenantId - ID del tenant
  * @param academyId - ID de la academia
  * @param deleteAll - Si es true, elimina todos. Si es false, solo los futuros
+ * @returns Número de appointments eliminados
  */
 export const deleteAcademyAppointments = async (
+  tenantId: string,
   academyId: string,
   deleteAll: boolean = false
 ): Promise<number> => {
-  console.log('🗑️ Deleting appointments for academy:', academyId);
+  console.log('🗑️ Deleting appointments for academy:', academyId, { deleteAll });
   
-  // Note: Esta función necesita el tenantId del contexto
-  // Por ahora, lanzamos un error si se intenta usar
-  throw new Error('deleteAcademyAppointments needs to be called from a hook with tenant context');
+  const appointmentsRef = collection(db, 'tenants', tenantId, 'appointments');
+  const q = query(appointmentsRef, where('academyId', '==', academyId));
+  
+  try {
+    const snapshot = await getDocs(q);
+    let deletedCount = 0;
+    const today = new Date().toISOString().split('T')[0];
+    
+    for (const docSnap of snapshot.docs) {
+      const appointment = docSnap.data();
+      
+      // Si deleteAll es false, solo eliminamos futuras
+      if (!deleteAll) {
+        const appointmentDate = appointment.date || new Date(appointment.startTime).toISOString().split('T')[0];
+        if (appointmentDate < today) {
+          console.log('⏭️ Skipping past appointment:', docSnap.id);
+          continue;
+        }
+      }
+      
+      await deleteDoc(docSnap.ref);
+      deletedCount++;
+      console.log('✅ Deleted appointment:', docSnap.id);
+    }
+    
+    console.log(`🎯 Deleted ${deletedCount} appointments for academy:`, academyId);
+    return deletedCount;
+  } catch (error) {
+    console.error('❌ Error deleting academy appointments:', error);
+    throw error;
+  }
 };
