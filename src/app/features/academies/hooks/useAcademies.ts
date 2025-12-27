@@ -1,88 +1,60 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-  where,
-  getDocs,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
-import { Academy, CreateAcademyData } from '../types';
+import AcademyModel from '@/estructura/Academy';
+import { Academy as AcademyInterface, CreateAcademyData } from '../types';
 import { generateAppointmentsFromAcademy, deleteAcademyAppointments } from '../utils/academyAppointments';
 
+// Convertir modelo a interfaz para compatibilidad
+const toAcademyInterface = (academy: AcademyModel): AcademyInterface => ({
+  id: academy.docId,
+  name: academy.name,
+  sportType: academy.sportType,
+  description: academy.description,
+  numberOfCourts: academy.numberOfCourts,
+  courtPrice: academy.courtPrice,
+  pricePerStudent: academy.pricePerStudent,
+  headCoachId: academy.headCoachId || undefined,
+  headCoachName: academy.headCoachName || undefined,
+  courts: academy.courts,
+  schedules: academy.schedules,
+  exerciseIds: academy.exerciseIds,
+  status: academy.status,
+  createdBy: academy.createdBy,
+  createdAt: academy.timestampCreatedAt,
+  updatedAt: academy.timestampUpdatedAt,
+});
+
 export const useAcademies = () => {
-  const [academies, setAcademies] = useState<Academy[]>([]);
+  const [academies, setAcademies] = useState<AcademyInterface[]>([]);
   const [loading, setLoading] = useState(true);
   const { tenant, user } = useAuth();
 
   useEffect(() => {
     if (!tenant?.id) {
-      console.log('❌ No tenant ID for academies');
       setLoading(false);
       return;
     }
 
-    let unsubscribe: (() => void) | undefined;
+    setLoading(true);
 
-    const setupListener = async () => {
-      try {
-        console.log('🔑 Setting up academies listener for tenant:', tenant.id);
-        const academiesRef = collection(db, 'tenants', tenant.id, 'academies');
-        const q = query(academiesRef, orderBy('createdAt', 'desc'));
-
-        unsubscribe = onSnapshot(
-          q,
-          (snapshot) => {
-            const academiesData = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            })) as Academy[];
-            console.log('🏫 Academies loaded:', academiesData.length);
-            setAcademies(academiesData);
-            setLoading(false);
-          },
-          (error) => {
-            console.error('Error loading academies:', error);
-            setAcademies([]);
-            setLoading(false);
-          }
-        );
-      } catch (error) {
-        console.error('Error setting up academies listener:', error);
-        setAcademies([]);
+    // Listener en tiempo real usando el modelo Academy
+    const unsubscribe = AcademyModel.onSnapshotOrdered(
+      tenant.id,
+      'createdAt',
+      'desc',
+      (academyModels) => {
+        setAcademies(academyModels.map(toAcademyInterface));
         setLoading(false);
       }
-    };
+    );
 
-    setupListener();
-
-    return () => {
-      if (unsubscribe) {
-        console.log('🧹 Cleaning up academies listener');
-        unsubscribe();
-      }
-    };
+    return () => unsubscribe();
   }, [tenant?.id]);
 
   const addAcademy = async (data: CreateAcademyData) => {
     if (!tenant?.id || !user?.uid) {
-      console.error('❌ No tenant ID or user ID when adding academy');
       throw new Error('No tenant ID or user ID');
     }
-
-    // Validations
-    // Nota: Validación de múltiples coaches comentada temporalmente
-    // hasta implementar sistema completo de gestión de coaches
-    // if (data.numberOfCourts >= 2 && data.courts.length < 2) {
-    //   throw new Error('NEED_AT_LEAST_TWO_COACHES_FOR_MULTIPLE_COURTS');
-    // }
 
     // Validate max clients per court (padel = 4)
     const maxClientsPerCourt = data.sportType === 'padel' ? 4 : 6;
@@ -92,91 +64,80 @@ export const useAcademies = () => {
       }
     }
 
+    const academy = new AcademyModel(tenant.id);
+    academy.name = data.name;
+    academy.sportType = data.sportType;
+    academy.description = data.description || '';
+    academy.numberOfCourts = data.numberOfCourts;
+    academy.courtPrice = data.courtPrice;
+    academy.pricePerStudent = data.pricePerStudent;
+    academy.headCoachId = data.headCoachId || '';
+    academy.headCoachName = data.headCoachName || '';
+    academy.schedules = data.schedules;
+    academy.exerciseIds = data.exerciseIds || [];
+    academy.status = 'active';
+    academy.createdBy = user.uid;
+
+    // Generate court IDs
+    academy.courts = data.courts.map((court, index) => ({
+      ...court,
+      id: `court_${Date.now()}_${index}`,
+    }));
+
+    await academy.save();
+
+    // Generar appointments automáticamente
     try {
-      console.log('💾 Creating academy with data:', data);
-      const academiesRef = collection(db, 'tenants', tenant.id, 'academies');
-
-      // Generate court IDs
-      const courtsWithIds = data.courts.map((court, index) => ({
-        ...court,
-        id: `court_${Date.now()}_${index}`,
-      }));
-
-      const academyData = {
-        ...data,
-        courts: courtsWithIds,
-        status: 'active',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        createdBy: user.uid,
-        exerciseIds: data.exerciseIds || [],
-      };
-
-      const docRef = await addDoc(academiesRef, academyData);
-      console.log('✅ Academy created with ID:', docRef.id);
-
-      // Generar appointments automáticamente
-      try {
-        const appointmentsCount = await generateAppointmentsFromAcademy(tenant.id, {
-          ...academyData,
-          id: docRef.id,
-        } as Academy);
-        console.log(`📅 Generated ${appointmentsCount} appointments for academy`);
-      } catch (appointmentError) {
-        console.error('⚠️ Error generating appointments:', appointmentError);
-        // No lanzamos error aquí, la academia ya fue creada
-      }
-
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating academy:', error);
-      throw error;
+      const appointmentsCount = await generateAppointmentsFromAcademy(
+        tenant.id, 
+        toAcademyInterface(academy)
+      );
+      console.log(`📅 Generated ${appointmentsCount} appointments for academy`);
+    } catch (appointmentError) {
+      console.error('⚠️ Error generating appointments:', appointmentError);
     }
+
+    return academy.docId;
   };
 
   const updateAcademy = async (
     id: string,
-    updates: Partial<Omit<Academy, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
+    updates: Partial<Omit<AcademyInterface, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>>
   ) => {
-    if (!tenant?.id) {
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      const academyRef = doc(db, 'tenants', tenant.id, 'academies', id);
-      await updateDoc(academyRef, {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      });
-      console.log('✅ Academy updated:', id);
-    } catch (error) {
-      console.error('Error updating academy:', error);
-      throw error;
-    }
+    const academy = await AcademyModel.getById(tenant.id, id);
+    if (!academy) throw new Error('Academia no encontrada');
+
+    if (updates.name !== undefined) academy.name = updates.name;
+    if (updates.sportType !== undefined) academy.sportType = updates.sportType;
+    if (updates.description !== undefined) academy.description = updates.description || '';
+    if (updates.numberOfCourts !== undefined) academy.numberOfCourts = updates.numberOfCourts;
+    if (updates.courtPrice !== undefined) academy.courtPrice = updates.courtPrice;
+    if (updates.pricePerStudent !== undefined) academy.pricePerStudent = updates.pricePerStudent;
+    if (updates.headCoachId !== undefined) academy.headCoachId = updates.headCoachId || '';
+    if (updates.headCoachName !== undefined) academy.headCoachName = updates.headCoachName || '';
+    if (updates.courts !== undefined) academy.courts = updates.courts;
+    if (updates.schedules !== undefined) academy.schedules = updates.schedules;
+    if (updates.exerciseIds !== undefined) academy.exerciseIds = updates.exerciseIds;
+    if (updates.status !== undefined) academy.status = updates.status;
+
+    await academy.save();
   };
 
   const deleteAcademy = async (id: string, deleteFutureAppointments: boolean = true) => {
-    if (!tenant?.id) {
-      throw new Error('No tenant ID');
+    if (!tenant?.id) throw new Error('No tenant ID');
+
+    // Delete associated appointments using utility function
+    if (deleteFutureAppointments) {
+      const deletedCount = await deleteAcademyAppointments(tenant.id, id, false);
+      console.log(`✅ Deleted ${deletedCount} future appointments`);
     }
 
-    try {
-      console.log('🗑️ Deleting academy:', id, { deleteFutureAppointments });
+    const academy = await AcademyModel.getById(tenant.id, id);
+    if (!academy) throw new Error('Academia no encontrada');
 
-      // Delete associated appointments using utility function
-      if (deleteFutureAppointments) {
-        const deletedCount = await deleteAcademyAppointments(tenant.id, id, false);
-        console.log(`✅ Deleted ${deletedCount} future appointments`);
-      }
-
-      // Then delete the academy document
-      const academyRef = doc(db, 'tenants', tenant.id, 'academies', id);
-      await deleteDoc(academyRef);
-      console.log('✅ Academy deleted:', id);
-    } catch (error) {
-      console.error('Error deleting academy:', error);
-      throw error;
-    }
+    await academy.delete();
   };
 
   const getAcademiesByCoach = (coachId: string) => {

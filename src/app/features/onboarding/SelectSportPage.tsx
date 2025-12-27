@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { sportOptions, type SportType } from '@/app/shared/types/sports';
 import { useAuth } from '@/app/features/auth/AuthContext';
-import { updateTenant } from '@/lib/tenant';
+import Tenant from '@/estructura/Tenant';
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
 export const SelectSportPage: React.FC = () => {
@@ -13,7 +13,7 @@ export const SelectSportPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const history = useHistory();
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
 
   const handleSubmit = async () => {
     if (!selectedSport) {
@@ -25,7 +25,7 @@ export const SelectSportPage: React.FC = () => {
       return;
     }
 
-    if (!user?.tenantId) {
+    if (!user?.tenantId || !tenant) {
       toast({
         variant: 'error',
         title: 'Error',
@@ -37,9 +37,8 @@ export const SelectSportPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await updateTenant(user.tenantId, {
-        businessType: selectedSport,
-      });
+      tenant.updateSettings({ businessType: selectedSport });
+      await tenant.save();
 
       toast({
         variant: 'success',

@@ -1,18 +1,31 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, addDoc, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
+import ClientModel from '@/estructura/Client';
+import type { ClientStatus } from '@/estructura/Client';
 
+// Re-exportar tipo para compatibilidad con código existente
 export interface Client {
   id: string;
   name: string;
   email: string;
   phone?: string;
   notes?: string;
-  status: 'active' | 'invited' | 'inactive';
+  status: ClientStatus;
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Convertir modelo a interfaz para compatibilidad
+const toClientInterface = (client: ClientModel): Client => ({
+  id: client.docId,
+  name: client.name,
+  email: client.email,
+  phone: client.phone || undefined,
+  notes: client.notes || undefined,
+  status: client.status,
+  createdAt: client.createdAt,
+  updatedAt: client.updatedAt,
+});
 
 export const useClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -29,34 +42,15 @@ export const useClients = () => {
 
     setLoading(true);
     
-    // Firestore path: tenants/{tenantId}/clients
-    const clientsRef = collection(db, 'tenants', tenant.id, 'clients');
-    const q = query(clientsRef, orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const clientsData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            notes: data.notes,
-            status: data.status || 'active',
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-          } as Client;
-        });
-        setClients(clientsData);
+    // Listener en tiempo real usando el modelo Client
+    const unsubscribe = ClientModel.onSnapshotOrdered(
+      tenant.id,
+      'createdAt',
+      'desc',
+      (clientModels) => {
+        setClients(clientModels.map(toClientInterface));
         setLoading(false);
         setError(null);
-      },
-      (err) => {
-        console.error('Error fetching clients:', err);
-        setError('Error al cargar clientes');
-        setLoading(false);
       }
     );
 
@@ -71,18 +65,15 @@ export const useClients = () => {
       throw new Error('NO_PUEDE_CREAR_CLIENTE_CON_SU_PROPIO_EMAIL');
     }
 
-    const clientsRef = collection(db, 'tenants', tenant.id, 'clients');
-    const now = Timestamp.now();
-
-    const newClient = {
-      ...clientData,
-      status: 'active',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const docRef = await addDoc(clientsRef, newClient);
-    return docRef.id;
+    const client = new ClientModel(tenant.id);
+    client.name = clientData.name;
+    client.email = clientData.email;
+    client.phone = clientData.phone || '';
+    client.notes = clientData.notes || '';
+    client.status = 'active';
+    
+    await client.save();
+    return client.docId;
   };
 
   const updateClient = async (clientId: string, updates: Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt'>>) => {
@@ -93,22 +84,25 @@ export const useClients = () => {
       throw new Error('NO_PUEDE_ACTUALIZAR_CLIENTE_CON_SU_PROPIO_EMAIL');
     }
 
-    const { doc, updateDoc } = await import('firebase/firestore');
-    const clientRef = doc(db, 'tenants', tenant.id, 'clients', clientId);
+    const client = await ClientModel.getById(tenant.id, clientId);
+    if (!client) throw new Error('Cliente no encontrado');
+
+    if (updates.name !== undefined) client.name = updates.name;
+    if (updates.email !== undefined) client.email = updates.email;
+    if (updates.phone !== undefined) client.phone = updates.phone || '';
+    if (updates.notes !== undefined) client.notes = updates.notes || '';
+    if (updates.status !== undefined) client.status = updates.status;
     
-    await updateDoc(clientRef, {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    });
+    await client.save();
   };
 
   const deleteClient = async (clientId: string) => {
     if (!tenant?.id) throw new Error('No tenant ID');
 
-    const { doc, deleteDoc } = await import('firebase/firestore');
-    const clientRef = doc(db, 'tenants', tenant.id, 'clients', clientId);
+    const client = await ClientModel.getById(tenant.id, clientId);
+    if (!client) throw new Error('Cliente no encontrado');
     
-    await deleteDoc(clientRef);
+    await client.delete();
   };
 
   return {

@@ -1,5 +1,4 @@
-import { addDoc, collection, Timestamp, query, where, getDocs, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import AppointmentModel from '@/estructura/Appointment';
 import { Academy, AcademySchedule } from '../types';
 
 /**
@@ -14,7 +13,6 @@ export const generateAppointmentsFromAcademy = async (
     return 0;
   }
 
-  const appointmentsRef = collection(db, 'tenants', tenantId, 'appointments');
   let createdCount = 0;
 
   for (const schedule of academy.schedules) {
@@ -37,26 +35,23 @@ export const generateAppointmentsFromAcademy = async (
           const endMins = endMinutes % 60;
           const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
 
-          const appointmentData = {
-            clientId,
-            clientName,
-            sportType: academy.sportType,
-            date,
-            startTime: schedule.startTime,
-            endTime,
-            duration: schedule.duration,
-            status: 'scheduled',
-            isPaid: false,
-            academyId: academy.id,
-            courtId: court.id,
-            exerciseIds: academy.exerciseIds || [],
-            notes: `Academia: ${academy.name} - Cancha ${court.courtNumber}`,
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-          };
+          const appointment = new AppointmentModel(tenantId);
+          appointment.clientId = clientId;
+          appointment.clientName = clientName;
+          appointment.sportType = academy.sportType;
+          appointment.date = date;
+          appointment.startTime = schedule.startTime;
+          appointment.endTime = endTime;
+          appointment.duration = schedule.duration;
+          appointment.status = 'scheduled';
+          appointment.isPaid = false;
+          appointment.academyId = academy.id;
+          appointment.courtId = court.id;
+          appointment.exerciseIds = academy.exerciseIds || [];
+          appointment.notes = `Academia: ${academy.name} - Cancha ${court.courtNumber}`;
 
           try {
-            await addDoc(appointmentsRef, appointmentData);
+            await appointment.save();
             createdCount++;
           } catch (error) {
             console.error('Error creating appointment:', error);
@@ -113,29 +108,24 @@ export const deleteAcademyAppointments = async (
 ): Promise<number> => {
   console.log('🗑️ Deleting appointments for academy:', academyId, { deleteAll });
   
-  const appointmentsRef = collection(db, 'tenants', tenantId, 'appointments');
-  const q = query(appointmentsRef, where('academyId', '==', academyId));
-  
   try {
-    const snapshot = await getDocs(q);
+    const appointments = await AppointmentModel.getByAcademy(tenantId, academyId);
     let deletedCount = 0;
     const today = new Date().toISOString().split('T')[0];
     
-    for (const docSnap of snapshot.docs) {
-      const appointment = docSnap.data();
-      
+    for (const appointment of appointments) {
       // Si deleteAll es false, solo eliminamos futuras
       if (!deleteAll) {
-        const appointmentDate = appointment.date || new Date(appointment.startTime).toISOString().split('T')[0];
+        const appointmentDate = appointment.date || new Date().toISOString().split('T')[0];
         if (appointmentDate < today) {
-          console.log('⏭️ Skipping past appointment:', docSnap.id);
+          console.log('⏭️ Skipping past appointment:', appointment.docId);
           continue;
         }
       }
       
-      await deleteDoc(docSnap.ref);
+      await appointment.delete();
       deletedCount++;
-      console.log('✅ Deleted appointment:', docSnap.id);
+      console.log('✅ Deleted appointment:', appointment.docId);
     }
     
     console.log(`🎯 Deleted ${deletedCount} appointments for academy:`, academyId);

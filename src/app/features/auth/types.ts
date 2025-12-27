@@ -1,80 +1,17 @@
 import { Timestamp } from 'firebase/firestore';
+import type Usuario from '@/estructura/Usuario';
+import type Tenant from '@/estructura/Tenant';
+import type { SportType } from '@/app/shared/types/sports';
 
 /**
  * User roles in the system
+ * @deprecated Usar UserRole de '@/estructura/Usuario'
  */
 export enum UserRole {
   OWNER = 'owner',           // Tenant owner (profesor/instructor principal)
   INSTRUCTOR = 'instructor', // Additional instructor in the tenant
   CLIENT = 'client',         // Client of the tenant
   ADMIN = 'admin',          // System admin (future use)
-}
-
-/**
- * Tenant plan types
- */
-export enum TenantPlan {
-  FREE = 'free',
-  PRO = 'pro',
-  ENTERPRISE = 'enterprise',
-}
-
-/**
- * User document in Firestore
- */
-export interface User {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL?: string;
-  phoneNumber?: string;
-  role: UserRole;
-  tenantId: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  emailVerified: boolean;
-  isActive: boolean;
-}
-
-/**
- * Tenant document in Firestore
- */
-export interface Tenant {
-  id: string;
-  name: string;
-  ownerId: string;
-  plan: TenantPlan;
-  settings: TenantSettings;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  isActive: boolean;
-  // Subscription info
-  subscriptionEndDate?: Timestamp;
-  trialEndDate?: Timestamp;
-}
-
-/**
- * Tenant settings
- */
-export interface TenantSettings {
-  businessName?: string;
-  businessType?: 'gym' | 'clinic' | 'personal_training' | 'other';
-  address?: string;
-  phone?: string;
-  website?: string;
-  logo?: string;
-  timezone?: string;
-  currency?: 'CLP' | 'USD';
-  // Sports/Activities that the trainer offers
-  sports?: string[]; // Array of SportType
-  onboardingCompleted?: boolean;
-  // Feature flags
-  features?: {
-    calendar?: boolean;
-    payments?: boolean;
-    routines?: boolean;
-    activities?: boolean;
-  };
 }
 
 /**
@@ -106,7 +43,7 @@ export interface AuthUser {
  */
 export interface AuthState {
   user: AuthUser | null;
-  userProfile: User | null;
+  userProfile: Usuario | null;
   tenant: Tenant | null;
   loading: boolean;
   initialized: boolean;
@@ -121,7 +58,7 @@ export interface RegisterFormData {
   confirmPassword: string;
   displayName: string;
   businessName: string;
-  businessType?: 'gym' | 'clinic' | 'personal_training' | 'other';
+  businessType?: SportType;
   acceptTerms: boolean;
 }
 

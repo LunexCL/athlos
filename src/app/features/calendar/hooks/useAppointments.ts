@@ -1,35 +1,25 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from 'firebase/firestore';
-import { db } from '../../../../lib/firebase';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../auth/AuthContext';
+import AppointmentModel from '@/estructura/Appointment';
 import { toast } from 'sonner';
 
 export interface Appointment {
   id: string;
   clientId: string;
-  clientName?: string; // Denormalized for easier display
+  clientName?: string;
   sportType: string;
-  date: string; // ISO date string
+  date: string;
   startTime: string;
   endTime?: string;
-  duration: number; // in minutes
+  duration: number;
   status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
-  isPaid?: boolean; // Payment status
+  isPaid?: boolean;
   notes?: string;
-  recurringGroupId?: string; // ID del grupo de clases recurrentes
-  exerciseIds?: string[]; // IDs de ejercicios asignados
-  academyId?: string; // ID de la academia (si es clase de academia)
-  courtId?: string; // ID de la cancha (si es clase de academia)
+  recurringGroupId?: string;
+  exerciseIds?: string[];
+  academyId?: string;
+  courtId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -43,10 +33,31 @@ export interface CreateAppointmentData {
   duration: number;
   notes?: string;
   recurringGroupId?: string;
-  exerciseIds?: string[]; // IDs de ejercicios asignados
-  academyId?: string; // ID de la academia (si es clase de academia)
-  courtId?: string; // ID de la cancha (si es clase de academia)
+  exerciseIds?: string[];
+  academyId?: string;
+  courtId?: string;
 }
+
+// Convertir modelo a interfaz para compatibilidad
+const toAppointmentInterface = (apt: AppointmentModel): Appointment => ({
+  id: apt.docId,
+  clientId: apt.clientId,
+  clientName: apt.clientName || undefined,
+  sportType: apt.sportType,
+  date: apt.date,
+  startTime: apt.startTime,
+  endTime: apt.endTime || undefined,
+  duration: apt.duration,
+  status: apt.status as Appointment['status'],
+  isPaid: apt.isPaid,
+  notes: apt.notes || undefined,
+  recurringGroupId: apt.recurringGroupId || undefined,
+  exerciseIds: apt.exerciseIds.length > 0 ? apt.exerciseIds : undefined,
+  academyId: apt.academyId || undefined,
+  courtId: apt.courtId || undefined,
+  createdAt: apt.timestampCreatedAt,
+  updatedAt: apt.timestampUpdatedAt,
+});
 
 export const useAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -55,31 +66,19 @@ export const useAppointments = () => {
 
   useEffect(() => {
     if (!tenant?.id) {
-      console.log('❌ No tenant ID for appointments');
       setLoading(false);
       return;
     }
 
-    console.log('🔑 Loading appointments for tenant:', tenant.id);
-    const appointmentsRef = collection(db, 'tenants', tenant.id, 'appointments');
-    const q = query(appointmentsRef, orderBy('createdAt', 'desc'));
+    setLoading(true);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const appointmentsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        console.log('📅 Appointments loaded:', appointmentsData.length, appointmentsData);
-        setAppointments(appointmentsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error loading appointments:', error);
-        toast.error('Error al cargar clases', {
-          description: 'No se pudieron cargar las clases programadas',
-        });
+    // Listener en tiempo real usando el modelo Appointment
+    const unsubscribe = AppointmentModel.onSnapshotOrdered(
+      tenant.id,
+      'createdAt',
+      'desc',
+      (appointmentModels) => {
+        setAppointments(appointmentModels.map(toAppointmentInterface));
         setLoading(false);
       }
     );
@@ -89,84 +88,62 @@ export const useAppointments = () => {
 
   const addAppointment = async (data: CreateAppointmentData) => {
     if (!tenant?.id) {
-      console.error('❌ No tenant ID when adding appointment');
       throw new Error('No tenant ID');
     }
 
-    try {
-      console.log('💾 Creating appointment with data:', data);
-      const appointmentsRef = collection(db, 'tenants', tenant.id, 'appointments');
-      
-      // Calculate end time
-      const [hours, minutes] = data.startTime.split(':').map(Number);
-      const endMinutes = hours * 60 + minutes + data.duration;
-      const endHours = Math.floor(endMinutes / 60);
-      const endMins = endMinutes % 60;
-      const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+    const appointment = new AppointmentModel(tenant.id);
+    appointment.clientId = data.clientId;
+    appointment.clientName = data.clientName;
+    appointment.sportType = data.sportType;
+    appointment.date = data.date;
+    appointment.startTime = data.startTime;
+    appointment.duration = data.duration;
+    appointment.notes = data.notes || '';
+    appointment.recurringGroupId = data.recurringGroupId || null;
+    appointment.exerciseIds = data.exerciseIds || [];
+    appointment.academyId = data.academyId || null;
+    appointment.courtId = data.courtId || null;
+    appointment.status = 'scheduled';
+    appointment.isPaid = false;
 
-      const appointmentData = {
-        clientId: data.clientId,
-        clientName: data.clientName,
-        sportType: data.sportType,
-        date: data.date,
-        startTime: data.startTime,
-        endTime,
-        duration: data.duration,
-        status: 'scheduled' as const,
-        isPaid: false,
-        recurringGroupId: data.recurringGroupId || null,
-        exerciseIds: data.exerciseIds || [],
-        academyId: data.academyId || null,
-        courtId: data.courtId || null,
-        notes: data.notes || '',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
+    // Calcular endTime
+    appointment.calculateEndTime();
 
-      console.log('📝 Saving appointment to path:', `tenants/${tenant.id}/appointments`);
-      console.log('📝 Appointment data:', appointmentData);
-      const docRef = await addDoc(appointmentsRef, appointmentData);
-      console.log('✅ Appointment created with ID:', docRef.id);
-      
-      return docRef.id; // Return the appointment ID
-    } catch (error) {
-      console.error('Error adding appointment:', error);
-      throw error;
-    }
+    await appointment.save();
+    return appointment.docId;
   };
 
   const updateAppointment = async (id: string, updates: Partial<Appointment>) => {
-    if (!tenant?.id) {
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      const appointmentRef = doc(db, 'tenants', tenant.id, 'appointments', id);
-      await updateDoc(appointmentRef, {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      });
-    } catch (error) {
-      console.error('Error updating appointment:', error);
-      throw error;
-    }
+    const appointment = await AppointmentModel.getById(tenant.id, id);
+    if (!appointment) throw new Error('Cita no encontrada');
+
+    if (updates.clientId !== undefined) appointment.clientId = updates.clientId;
+    if (updates.clientName !== undefined) appointment.clientName = updates.clientName || '';
+    if (updates.sportType !== undefined) appointment.sportType = updates.sportType;
+    if (updates.date !== undefined) appointment.date = updates.date;
+    if (updates.startTime !== undefined) appointment.startTime = updates.startTime;
+    if (updates.endTime !== undefined) appointment.endTime = updates.endTime || '';
+    if (updates.duration !== undefined) appointment.duration = updates.duration;
+    if (updates.status !== undefined) appointment.status = updates.status;
+    if (updates.isPaid !== undefined) appointment.isPaid = updates.isPaid;
+    if (updates.notes !== undefined) appointment.notes = updates.notes || '';
+    if (updates.recurringGroupId !== undefined) appointment.recurringGroupId = updates.recurringGroupId || null;
+    if (updates.exerciseIds !== undefined) appointment.exerciseIds = updates.exerciseIds || [];
+    if (updates.academyId !== undefined) appointment.academyId = updates.academyId || null;
+    if (updates.courtId !== undefined) appointment.courtId = updates.courtId || null;
+
+    await appointment.save();
   };
 
   const deleteAppointment = async (id: string) => {
-    if (!tenant?.id) {
-      console.error('❌ No tenant ID when deleting appointment');
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      console.log(`🗑️ Deleting appointment ${id} for tenant ${tenant.id}`);
-      const appointmentRef = doc(db, 'tenants', tenant.id, 'appointments', id);
-      await deleteDoc(appointmentRef);
-      console.log(`✅ Appointment ${id} deleted successfully`);
-    } catch (error) {
-      console.error(`❌ Error deleting appointment ${id}:`, error);
-      throw error;
-    }
+    const appointment = await AppointmentModel.getById(tenant.id, id);
+    if (!appointment) throw new Error('Cita no encontrada');
+
+    await appointment.delete();
   };
 
   return {

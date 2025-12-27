@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { sportOptions, SportType } from '@/app/shared/types/sports';
 import { CheckCircle2, Circle, ArrowRight, Dumbbell } from 'lucide-react';
 import { toast } from 'sonner';
+import TenantModel from '@/estructura/Tenant';
+import Usuario from '@/estructura/Usuario';
 
 export const OnboardingPage: React.FC = () => {
   const [selectedSports, setSelectedSports] = useState<SportType[]>([]);
@@ -68,11 +68,10 @@ export const OnboardingPage: React.FC = () => {
       
       if (!tenantId) {
         console.log('🔍 Getting tenantId from user document...');
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
+        const userModel = await Usuario.getByUid(user.uid);
         
-        if (userDoc.exists()) {
-          tenantId = userDoc.data().tenantId;
+        if (userModel) {
+          tenantId = userModel.tenantId;
           console.log('✅ Found tenantId in user doc:', tenantId);
         }
       }
@@ -89,12 +88,20 @@ export const OnboardingPage: React.FC = () => {
       }
 
       console.log('📝 Updating tenant:', tenantId);
-      const tenantRef = doc(db, 'tenants', tenantId);
-      await updateDoc(tenantRef, {
-        'settings.sports': selectedSports,
-        'settings.onboardingCompleted': true,
-        updatedAt: new Date(),
-      });
+      const tenantModel = await TenantModel.getById(tenantId);
+      
+      if (!tenantModel) {
+        toast.error('Error', { description: 'No se encontró el tenant' });
+        setIsLoading(false);
+        return;
+      }
+
+      tenantModel.settings = {
+        ...tenantModel.settings,
+        sports: selectedSports,
+        onboardingCompleted: true,
+      };
+      await tenantModel.save();
 
       console.log('✅ Saved successfully!');
       

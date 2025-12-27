@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
-import { Availability } from '../types';
+import AvailabilityModel from '@/estructura/Availability';
+import { Availability as AvailabilityInterface } from '../types';
+
+// Convertir modelo a interfaz para compatibilidad
+const toAvailabilityInterface = (av: AvailabilityModel): AvailabilityInterface => ({
+  id: av.docId,
+  tenantId: av.tenantId,
+  dayOfWeek: av.dayOfWeek,
+  startTime: av.startTime,
+  endTime: av.endTime,
+  duration: av.duration,
+  priceType: av.priceType || undefined,
+  isActive: av.isActive,
+  createdAt: av.createdAt,
+  updatedAt: av.updatedAt,
+});
 
 export const useAvailability = () => {
-  const [availabilities, setAvailabilities] = useState<Availability[]>([]);
+  const [availabilities, setAvailabilities] = useState<AvailabilityInterface[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { tenant } = useAuth();
@@ -28,85 +31,64 @@ export const useAvailability = () => {
     }
 
     setLoading(true);
-    
-    // Firestore path: tenants/{tenantId}/availability
-    const availabilityRef = collection(db, 'tenants', tenant.id, 'availability');
-    const q = query(availabilityRef, orderBy('dayOfWeek', 'asc'));
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const availabilityData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            tenantId: tenant.id,
-            dayOfWeek: data.dayOfWeek,
-            startTime: data.startTime,
-            endTime: data.endTime,
-            duration: data.duration,
-            priceType: data.priceType || undefined, // 'low' | 'high' | undefined
-            isActive: data.isActive !== false, // Default to true
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-          } as Availability;
-        });
-        setAvailabilities(availabilityData);
+    // Listener en tiempo real usando el modelo Availability
+    const unsubscribe = AvailabilityModel.onSnapshotOrdered(
+      tenant.id,
+      'dayOfWeek',
+      'asc',
+      (availabilityModels) => {
+        setAvailabilities(availabilityModels.map(toAvailabilityInterface));
         setLoading(false);
         setError(null);
-      },
-      (err) => {
-        console.error('Error fetching availability:', err);
-        setError('Error al cargar disponibilidad');
-        setLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, [tenant?.id]);
 
-  const addAvailability = async (availabilityData: Omit<Availability, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
+  const addAvailability = async (availabilityData: Omit<AvailabilityInterface, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
     if (!tenant?.id) throw new Error('No tenant ID');
 
-    const availabilityRef = collection(db, 'tenants', tenant.id, 'availability');
-    const now = Timestamp.now();
+    const availability = new AvailabilityModel(tenant.id);
+    availability.dayOfWeek = availabilityData.dayOfWeek;
+    availability.startTime = availabilityData.startTime;
+    availability.endTime = availabilityData.endTime;
+    availability.duration = availabilityData.duration;
+    availability.priceType = availabilityData.priceType || null;
+    availability.isActive = availabilityData.isActive;
 
-    const newAvailability = {
-      dayOfWeek: availabilityData.dayOfWeek,
-      startTime: availabilityData.startTime,
-      endTime: availabilityData.endTime,
-      duration: availabilityData.duration,
-      priceType: availabilityData.priceType || null,
-      isActive: availabilityData.isActive,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const docRef = await addDoc(availabilityRef, newAvailability);
-    return docRef.id;
+    await availability.save();
+    return availability.docId;
   };
 
-  const updateAvailability = async (availabilityId: string, updates: Partial<Omit<Availability, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>) => {
+  const updateAvailability = async (availabilityId: string, updates: Partial<Omit<AvailabilityInterface, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>) => {
     if (!tenant?.id) throw new Error('No tenant ID');
 
-    const availabilityRef = doc(db, 'tenants', tenant.id, 'availability', availabilityId);
-    
-    await updateDoc(availabilityRef, {
-      ...updates,
-      updatedAt: Timestamp.now(),
-    });
+    const availability = await AvailabilityModel.getById(tenant.id, availabilityId);
+    if (!availability) throw new Error('Disponibilidad no encontrada');
+
+    if (updates.dayOfWeek !== undefined) availability.dayOfWeek = updates.dayOfWeek;
+    if (updates.startTime !== undefined) availability.startTime = updates.startTime;
+    if (updates.endTime !== undefined) availability.endTime = updates.endTime;
+    if (updates.duration !== undefined) availability.duration = updates.duration;
+    if (updates.priceType !== undefined) availability.priceType = updates.priceType || null;
+    if (updates.isActive !== undefined) availability.isActive = updates.isActive;
+
+    await availability.save();
   };
 
   const deleteAvailability = async (availabilityId: string) => {
     if (!tenant?.id) throw new Error('No tenant ID');
 
-    const availabilityRef = doc(db, 'tenants', tenant.id, 'availability', availabilityId);
-    
-    await deleteDoc(availabilityRef);
+    const availability = await AvailabilityModel.getById(tenant.id, availabilityId);
+    if (!availability) throw new Error('Disponibilidad no encontrada');
+
+    await availability.delete();
   };
 
   // Helper: Get availabilities for a specific day
-  const getAvailabilitiesForDay = (dayOfWeek: number): Availability[] => {
+  const getAvailabilitiesForDay = (dayOfWeek: number): AvailabilityInterface[] => {
     return availabilities.filter(
       av => av.dayOfWeek === dayOfWeek && av.isActive
     );

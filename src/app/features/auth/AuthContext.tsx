@@ -1,11 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { signInWithEmail, registerWithEmail, signOut as firebaseSignOut } from '@/lib/auth';
-import type { AuthState, AuthUser, User, Tenant, RegisterFormData, LoginFormData } from './types';
+import Usuario from '@/estructura/Usuario';
+import Tenant from '@/estructura/Tenant';
+import type { AuthState, AuthUser, RegisterFormData, LoginFormData } from './types';
 
-interface AuthContextValue extends AuthState {
+interface AuthContextValue extends Omit<AuthState, 'userProfile' | 'tenant'> {
+  userProfile: Usuario | null;
+  tenant: Tenant | null;
   login: (data: LoginFormData) => Promise<void>;
   register: (data: RegisterFormData) => Promise<void>;
   logout: () => Promise<void>;
@@ -14,25 +17,21 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    userProfile: null,
-    tenant: null,
-    loading: true,
-    initialized: false,
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [userProfile, setUserProfile] = useState<Usuario | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   // Subscribe to auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (!firebaseUser) {
-        setState({
-          user: null,
-          userProfile: null,
-          tenant: null,
-          loading: false,
-          initialized: true,
-        });
+        setUser(null);
+        setUserProfile(null);
+        setTenant(null);
+        setLoading(false);
+        setInitialized(true);
         return;
       }
 
@@ -53,62 +52,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isActive: customClaims.isActive as boolean | undefined,
         };
 
-        // Get user profile from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        // Get user profile from Firestore usando el nuevo modelo Usuario
+        const usuario = await Usuario.getById(firebaseUser.uid);
         
-        if (!userDoc.exists()) {
+        if (!usuario) {
           console.warn('User document not found, might be during registration');
-          setState({
-            user: authUser,
-            userProfile: null,
-            tenant: null,
-            loading: false,
-            initialized: true,
-          });
+          setUser(authUser);
+          setUserProfile(null);
+          setTenant(null);
+          setLoading(false);
+          setInitialized(true);
           return;
         }
 
-        const userProfile = { id: userDoc.id, ...userDoc.data() } as unknown as User;
-
         // Get tenant - try from custom claims first, then from user document
-        let tenant: Tenant | null = null;
+        let loadedTenant: Tenant | null = null;
         const tenantIdFromClaims = customClaims.tenantId as string | undefined;
-        const tenantIdFromUser = userProfile.tenantId;
+        const tenantIdFromUser = usuario.tenantId;
         const tenantId = tenantIdFromClaims || tenantIdFromUser;
         
         if (tenantId) {
           try {
-            const tenantDoc = await getDoc(doc(db, 'tenants', tenantId));
-            if (tenantDoc.exists()) {
-              tenant = { id: tenantDoc.id, ...tenantDoc.data() } as unknown as Tenant;
-            }
+            loadedTenant = await Tenant.getById(tenantId);
           } catch (error) {
             console.error('Error loading tenant:', error);
           }
         }
 
-        setState({
-          user: authUser,
-          userProfile,
-          tenant,
-          loading: false,
-          initialized: true,
-        });
+        setUser(authUser);
+        setUserProfile(usuario);
+        setTenant(loadedTenant);
+        setLoading(false);
+        setInitialized(true);
       } catch (error: any) {
         console.error('Error loading user data:', error);
-        setState({
-          user: {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            emailVerified: firebaseUser.emailVerified,
-          },
-          userProfile: null,
-          tenant: null,
-          loading: false,
-          initialized: true,
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified,
         });
+        setUserProfile(null);
+        setTenant(null);
+        setLoading(false);
+        setInitialized(true);
       }
     });
 
@@ -117,50 +105,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (data: LoginFormData) => {
     try {
-      setState((prev) => ({ ...prev, loading: true }));
+      setLoading(true);
       await signInWithEmail(data.email, data.password);
       // onAuthStateChanged will handle the rest
     } catch (error: any) {
-      setState((prev) => ({ ...prev, loading: false }));
+      setLoading(false);
       throw error;
     }
   }, []);
 
   const register = useCallback(async (data: RegisterFormData) => {
     try {
-      setState((prev) => ({ ...prev, loading: true }));
+      setLoading(true);
       await registerWithEmail(data.email, data.password, data.displayName);
       // onAuthStateChanged will handle the rest
     } catch (error: any) {
-      setState((prev) => ({ ...prev, loading: false }));
+      setLoading(false);
       throw error;
     }
   }, []);
 
   const logout = useCallback(async () => {
     try {
-      setState((prev) => ({ ...prev, loading: true }));
+      setLoading(true);
       await firebaseSignOut();
       // onAuthStateChanged will handle clearing state
     } catch (error: any) {
-      setState((prev) => ({ ...prev, loading: false }));
+      setLoading(false);
       throw error;
     }
   }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
-    user: state.user,
-    userProfile: state.userProfile,
-    tenant: state.tenant,
-    loading: state.loading,
-    initialized: state.initialized,
+    user,
+    userProfile,
+    tenant,
+    loading,
+    initialized,
     login,
     register,
     logout,
-  }), [state.user, state.userProfile, state.tenant, state.loading, state.initialized, login, register, logout]);
+  }), [user, userProfile, tenant, loading, initialized, login, register, logout]);
 
   // Only render children after provider is ready to prevent loops
-  if (!state.initialized) {
+  if (!initialized) {
     return (
       <AuthContext.Provider value={value}>
         <div className="flex min-h-screen items-center justify-center">

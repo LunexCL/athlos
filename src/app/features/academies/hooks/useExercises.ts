@@ -1,140 +1,115 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
-import { Exercise, CreateExerciseData } from '../types';
+import ExerciseModel from '@/estructura/Exercise';
+import type { ExerciseCategory, ExerciseDifficulty } from '@/estructura/Exercise';
+import { Exercise as ExerciseInterface, CreateExerciseData } from '../types';
+
+// Re-exportar tipos para compatibilidad
+export type { ExerciseCategory, ExerciseDifficulty };
+
+// Convertir modelo a interfaz para compatibilidad con código existente
+const toExerciseInterface = (exercise: ExerciseModel): ExerciseInterface => ({
+  id: exercise.docId,
+  name: exercise.name,
+  description: exercise.description,
+  duration: exercise.duration,
+  materials: exercise.materials,
+  objectives: exercise.objectives,
+  category: exercise.category,
+  sportType: exercise.sportType,
+  difficulty: exercise.difficulty,
+  videoUrl: exercise.videoUrl || undefined,
+  imageUrl: exercise.imageUrl || undefined,
+  instructions: exercise.instructions,
+  createdAt: exercise.timestampCreatedAt,
+  updatedAt: exercise.timestampUpdatedAt,
+});
 
 export const useExercises = () => {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [exercises, setExercises] = useState<ExerciseInterface[]>([]);
   const [loading, setLoading] = useState(true);
   const { tenant } = useAuth();
 
   useEffect(() => {
     if (!tenant?.id) {
-      console.log('❌ No tenant ID for exercises');
       setLoading(false);
       return;
     }
 
-    let unsubscribe: (() => void) | undefined;
+    setLoading(true);
 
-    const setupListener = async () => {
-      try {
-        console.log('🔑 Setting up exercises listener for tenant:', tenant.id);
-        const exercisesRef = collection(db, 'tenants', tenant.id, 'exercises');
-        const q = query(exercisesRef, orderBy('createdAt', 'desc'));
-
-        unsubscribe = onSnapshot(
-          q,
-          (snapshot) => {
-            const exercisesData = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            })) as Exercise[];
-            console.log('💪 Exercises loaded:', exercisesData.length);
-            setExercises(exercisesData);
-            setLoading(false);
-          },
-          (error) => {
-            console.error('Error loading exercises:', error);
-            setExercises([]);
-            setLoading(false);
-          }
-        );
-      } catch (error) {
-        console.error('Error setting up exercises listener:', error);
-        setExercises([]);
+    // Listener en tiempo real usando el modelo Exercise
+    const unsubscribe = ExerciseModel.onSnapshotOrdered(
+      tenant.id,
+      'createdAt',
+      'desc',
+      (exerciseModels) => {
+        setExercises(exerciseModels.map(toExerciseInterface));
         setLoading(false);
       }
-    };
+    );
 
-    setupListener();
-
-    return () => {
-      if (unsubscribe) {
-        console.log('🧹 Cleaning up exercises listener');
-        unsubscribe();
-      }
-    };
+    return () => unsubscribe();
   }, [tenant?.id]);
 
   const addExercise = async (data: CreateExerciseData) => {
-    if (!tenant?.id) {
-      console.error('❌ No tenant ID when adding exercise');
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      console.log('💾 Creating exercise with data:', data);
-      const exercisesRef = collection(db, 'tenants', tenant.id, 'exercises');
+    const exercise = new ExerciseModel(tenant.id);
+    exercise.name = data.name;
+    exercise.description = data.description;
+    exercise.duration = data.duration || 0;
+    exercise.materials = data.materials || [];
+    exercise.objectives = data.objectives;
+    exercise.category = data.category;
+    exercise.sportType = data.sportType;
+    exercise.difficulty = data.difficulty;
+    exercise.videoUrl = data.videoUrl || '';
+    exercise.imageUrl = data.imageUrl || '';
+    exercise.instructions = data.instructions || '';
 
-      const exerciseData = {
-        ...data,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      };
-
-      const docRef = await addDoc(exercisesRef, exerciseData);
-      console.log('✅ Exercise created with ID:', docRef.id);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating exercise:', error);
-      throw error;
-    }
+    await exercise.save();
+    return exercise.docId;
   };
 
   const updateExercise = async (
     id: string,
-    updates: Partial<Omit<Exercise, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: Partial<Omit<ExerciseInterface, 'id' | 'createdAt' | 'updatedAt'>>
   ) => {
-    if (!tenant?.id) {
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      const exerciseRef = doc(db, 'tenants', tenant.id, 'exercises', id);
-      await updateDoc(exerciseRef, {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      });
-      console.log('✅ Exercise updated:', id);
-    } catch (error) {
-      console.error('Error updating exercise:', error);
-      throw error;
-    }
+    const exercise = await ExerciseModel.getById(tenant.id, id);
+    if (!exercise) throw new Error('Ejercicio no encontrado');
+
+    if (updates.name !== undefined) exercise.name = updates.name;
+    if (updates.description !== undefined) exercise.description = updates.description;
+    if (updates.duration !== undefined) exercise.duration = updates.duration;
+    if (updates.materials !== undefined) exercise.materials = updates.materials;
+    if (updates.objectives !== undefined) exercise.objectives = updates.objectives;
+    if (updates.category !== undefined) exercise.category = updates.category;
+    if (updates.sportType !== undefined) exercise.sportType = updates.sportType;
+    if (updates.difficulty !== undefined) exercise.difficulty = updates.difficulty;
+    if (updates.videoUrl !== undefined) exercise.videoUrl = updates.videoUrl || '';
+    if (updates.imageUrl !== undefined) exercise.imageUrl = updates.imageUrl || '';
+    if (updates.instructions !== undefined) exercise.instructions = updates.instructions;
+
+    await exercise.save();
   };
 
   const deleteExercise = async (id: string) => {
-    if (!tenant?.id) {
-      throw new Error('No tenant ID');
-    }
+    if (!tenant?.id) throw new Error('No tenant ID');
 
-    try {
-      const exerciseRef = doc(db, 'tenants', tenant.id, 'exercises', id);
-      await deleteDoc(exerciseRef);
-      console.log('✅ Exercise deleted:', id);
-    } catch (error) {
-      console.error('Error deleting exercise:', error);
-      throw error;
-    }
+    const exercise = await ExerciseModel.getById(tenant.id, id);
+    if (!exercise) throw new Error('Ejercicio no encontrado');
+
+    await exercise.delete();
   };
 
   const getExercisesBySport = (sportType: string) => {
     return exercises.filter((exercise) => exercise.sportType === sportType);
   };
 
-  const getExercisesByCategory = (category: Exercise['category']) => {
+  const getExercisesByCategory = (category: ExerciseInterface['category']) => {
     return exercises.filter((exercise) => exercise.category === category);
   };
 

@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/app/layouts/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Users, Activity, TrendingUp } from 'lucide-react';
 import { useClients } from '../clients/hooks/useClients';
+import { sportOptions } from '@/app/shared/types/sports';
 
 export const HomePage: React.FC = () => {
   const { user, userProfile, tenant } = useAuth();
@@ -149,10 +150,7 @@ export const HomePage: React.FC = () => {
                   <div className="flex justify-between py-3 border-b border-gray-100">
                     <span className="text-sm font-medium text-gray-600">Tipo</span>
                     <span className="text-sm font-semibold text-gray-900 capitalize">
-                      {tenant.settings.businessType === 'gym' ? 'Gimnasio' :
-                       tenant.settings.businessType === 'clinic' ? 'Clínica' :
-                       tenant.settings.businessType === 'personal_training' ? 'Entrenamiento Personal' :
-                       'Otro'}
+                      {sportOptions.find(s => s.value === tenant.settings.businessType)?.label || 'Otro'}
                     </span>
                   </div>
                 )}

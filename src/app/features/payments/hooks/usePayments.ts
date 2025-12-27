@@ -1,20 +1,34 @@
 import { useState, useEffect } from 'react';
-import {
-  collection,
-  addDoc,
-  query,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-  where,
-} from 'firebase/firestore';
-import { db } from '../../../../lib/firebase';
 import { useAuth } from '../../auth/AuthContext';
+import PaymentModel from '@/estructura/Payment';
 import { toast } from 'sonner';
 import type { Payment, CreatePaymentData, UpdatePaymentData, PaymentStats } from '../types';
+
+// Convertir modelo a interfaz para compatibilidad
+const toPaymentInterface = (payment: PaymentModel): Payment => ({
+  id: payment.docId,
+  tenantId: payment.tenantId,
+  appointmentId: payment.appointmentId,
+  clientId: payment.clientId,
+  clientName: payment.clientName,
+  amount: payment.amount,
+  currency: payment.currency,
+  provider: payment.provider,
+  method: payment.method,
+  status: payment.status,
+  paymentToken: payment.paymentToken || undefined,
+  externalId: payment.externalId,
+  preferenceId: payment.preferenceId,
+  merchantOrderId: payment.merchantOrderId,
+  proofUrl: payment.proofUrl,
+  proofStatus: payment.proofStatus,
+  reviewedBy: payment.reviewedBy,
+  reviewedAt: payment.reviewedAt,
+  rejectionReason: payment.rejectionReason,
+  paidAt: payment.paidAt,
+  createdAt: payment.createdAt,
+  updatedAt: payment.updatedAt,
+});
 
 export const usePayments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -23,38 +37,19 @@ export const usePayments = () => {
 
   useEffect(() => {
     if (!tenant?.id) {
-      console.log('❌ No tenant ID for payments');
       setLoading(false);
       return;
     }
 
-    console.log('🔑 Loading payments for tenant:', tenant.id);
-    const paymentsRef = collection(db, 'tenants', tenant.id, 'payments');
-    const q = query(paymentsRef, orderBy('createdAt', 'desc'));
+    setLoading(true);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const paymentsData = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            paidAt: data.paidAt?.toDate() || null,
-            reviewedAt: data.reviewedAt?.toDate() || null,
-          } as Payment;
-        });
-        console.log('💳 Payments loaded:', paymentsData.length);
-        setPayments(paymentsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error loading payments:', error);
-        toast.error('Error al cargar pagos', {
-          description: 'No se pudieron cargar los pagos',
-        });
+    // Listener en tiempo real usando el modelo Payment
+    const unsubscribe = PaymentModel.onSnapshotOrdered(
+      tenant.id,
+      'createdAt',
+      'desc',
+      (paymentModels) => {
+        setPayments(paymentModels.map(toPaymentInterface));
         setLoading(false);
       }
     );
@@ -74,34 +69,26 @@ export const usePayments = () => {
     }
 
     try {
-      const paymentsRef = collection(db, 'tenants', tenant.id, 'payments');
-      const now = Timestamp.now();
+      const payment = new PaymentModel(tenant.id);
+      payment.appointmentId = data.appointmentId;
+      payment.clientId = data.clientId || user.uid;
+      payment.clientName = data.clientName || user.displayName || 'Cliente';
+      payment.amount = data.amount;
+      payment.currency = 'CLP';
+      payment.provider = data.provider || 'manual';
+      payment.method = data.method;
+      payment.status = 'pending';
+      payment.proofUrl = data.proofUrl || null;
+      payment.proofStatus = data.proofStatus || null;
+      payment.paymentToken = data.paymentToken || null;
 
-      const paymentData = {
-        tenantId: tenant.id,
-        appointmentId: data.appointmentId,
-        clientId: data.clientId || user.uid,
-        clientName: data.clientName || user.displayName || 'Cliente',
-        amount: data.amount,
-        currency: 'CLP' as const,
-        provider: data.provider || 'manual',
-        method: data.method,
-        status: 'pending' as const,
-        proofUrl: data.proofUrl || null,
-        proofStatus: data.proofStatus || null,
-        paymentToken: data.paymentToken || null,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      const docRef = await addDoc(paymentsRef, paymentData);
-      console.log('✅ Payment created:', docRef.id);
+      await payment.save();
       
       toast.success('Pago registrado', {
         description: 'El pago ha sido registrado exitosamente',
       });
 
-      return docRef.id;
+      return payment.docId;
     } catch (error) {
       console.error('Error creating payment:', error);
       toast.error('Error al registrar pago', {
@@ -118,24 +105,24 @@ export const usePayments = () => {
     }
 
     try {
-      const paymentRef = doc(db, 'tenants', tenant.id, 'payments', id);
-      
-      const updateData: any = {
-        ...updates,
-        updatedAt: Timestamp.now(),
-      };
-
-      // Convert Date objects to Timestamps
-      if (updates.paidAt) {
-        updateData.paidAt = Timestamp.fromDate(updates.paidAt);
-      }
-      if (updates.reviewedAt) {
-        updateData.reviewedAt = Timestamp.fromDate(updates.reviewedAt);
+      const payment = await PaymentModel.getById(tenant.id, id);
+      if (!payment) {
+        toast.error('Error', { description: 'Pago no encontrado' });
+        return false;
       }
 
-      await updateDoc(paymentRef, updateData);
-      console.log('✅ Payment updated:', id);
+      if (updates.status !== undefined) payment.status = updates.status;
+      if (updates.proofUrl !== undefined) payment.proofUrl = updates.proofUrl;
+      if (updates.proofStatus !== undefined) payment.proofStatus = updates.proofStatus;
+      if (updates.reviewedBy !== undefined) payment.reviewedBy = updates.reviewedBy;
+      if (updates.reviewedAt !== undefined) payment.reviewedAt = updates.reviewedAt;
+      if (updates.rejectionReason !== undefined) payment.rejectionReason = updates.rejectionReason;
+      if (updates.paidAt !== undefined) payment.paidAt = updates.paidAt;
+      if (updates.externalId !== undefined) payment.externalId = updates.externalId;
+      if (updates.preferenceId !== undefined) payment.preferenceId = updates.preferenceId;
+      if (updates.merchantOrderId !== undefined) payment.merchantOrderId = updates.merchantOrderId;
 
+      await payment.save();
       return true;
     } catch (error) {
       console.error('Error updating payment:', error);
@@ -147,21 +134,24 @@ export const usePayments = () => {
   };
 
   const approveProof = async (paymentId: string, userId: string): Promise<boolean> => {
-    const success = await updatePayment(paymentId, {
-      proofStatus: 'approved',
-      status: 'completed',
-      reviewedBy: userId,
-      reviewedAt: new Date(),
-      paidAt: new Date(),
-    });
+    if (!tenant?.id) return false;
 
-    if (success) {
+    try {
+      const payment = await PaymentModel.getById(tenant.id, paymentId);
+      if (!payment) return false;
+
+      payment.approveProof(userId);
+      await payment.save();
+
       toast.success('Comprobante aprobado', {
         description: 'El pago ha sido confirmado',
       });
-    }
 
-    return success;
+      return true;
+    } catch (error) {
+      console.error('Error approving proof:', error);
+      return false;
+    }
   };
 
   const rejectProof = async (
@@ -169,21 +159,24 @@ export const usePayments = () => {
     userId: string,
     reason: string
   ): Promise<boolean> => {
-    const success = await updatePayment(paymentId, {
-      proofStatus: 'rejected',
-      status: 'failed',
-      reviewedBy: userId,
-      reviewedAt: new Date(),
-      rejectionReason: reason,
-    });
+    if (!tenant?.id) return false;
 
-    if (success) {
+    try {
+      const payment = await PaymentModel.getById(tenant.id, paymentId);
+      if (!payment) return false;
+
+      payment.rejectProof(userId, reason);
+      await payment.save();
+
       toast.success('Comprobante rechazado', {
         description: 'Se ha notificado al cliente',
       });
-    }
 
-    return success;
+      return true;
+    } catch (error) {
+      console.error('Error rejecting proof:', error);
+      return false;
+    }
   };
 
   const deletePayment = async (id: string): Promise<boolean> => {
@@ -193,9 +186,13 @@ export const usePayments = () => {
     }
 
     try {
-      const paymentRef = doc(db, 'tenants', tenant.id, 'payments', id);
-      await deleteDoc(paymentRef);
-      console.log('✅ Payment deleted:', id);
+      const payment = await PaymentModel.getById(tenant.id, id);
+      if (!payment) {
+        toast.error('Error', { description: 'Pago no encontrado' });
+        return false;
+      }
+
+      await payment.delete();
 
       toast.success('Pago eliminado', {
         description: 'El registro de pago ha sido eliminado',
