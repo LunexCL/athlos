@@ -281,4 +281,32 @@ export default class Tenant extends BaseModel<Tenant> {
       throw error;
     }
   }
+
+  /**
+   * Actualiza la configuración de un tenant por su ID.
+   * Método estático de conveniencia.
+   * 
+   * @param tenantId - ID del tenant a actualizar
+   * @param updates - Campos a actualizar en settings
+   */
+  static async updateTenantSettings(
+    tenantId: string,
+    updates: Partial<TenantSettings>
+  ): Promise<void> {
+    console.log('📦 Tenant.updateTenantSettings called for:', tenantId);
+    
+    const tenant = await Tenant.getById(tenantId);
+    
+    if (!tenant) {
+      throw new Error(`Tenant not found: ${tenantId}`);
+    }
+
+    // Actualizar settings
+    tenant.updateSettings(updates);
+    
+    // Guardar cambios
+    await tenant.save();
+    
+    console.log('✅ Tenant updated successfully');
+  }
 }
