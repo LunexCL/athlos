@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { registerWithEmail, signInWithGoogle } from '@/lib/auth';
-import Tenant from '@/estructura/Tenant';
+import { createTenantAndUser } from '@/lib/tenant';
 import { getAuthErrorMessage } from './types';
 import { Loader2 } from 'lucide-react';
 
@@ -75,7 +75,7 @@ export const RegisterPage: React.FC = () => {
 
       // Create tenant and user documents directly in Firestore
       console.log('2️⃣ Creating tenant and user documents in Firestore...');
-      const result = await Tenant.createWithOwner({
+      const result = await createTenantAndUser({
         userId: userCredential.user.uid,
         email: data.email,
         displayName: data.displayName,
@@ -125,7 +125,7 @@ export const RegisterPage: React.FC = () => {
 
       // Check if user already has tenant (returning user)
       console.log('2️⃣ Creating/checking tenant and user documents...');
-      const result = await Tenant.createWithOwner({
+      const result = await createTenantAndUser({
         userId: user.uid,
         email: user.email || '',
         displayName: user.displayName || 'Usuario',

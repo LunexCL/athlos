@@ -11,6 +11,8 @@ import { RecurringClassesPage } from './app/features/calendar/RecurringClassesPa
 import { AvailabilitySettings } from './app/features/calendar/AvailabilitySettings';
 import { ClientListPage } from './app/features/clients/ClientListPage';
 import { PaymentSettingsPage } from './app/features/payments/PaymentSettingsPage';
+import { PaymentHistoryPage } from './app/features/payments/PaymentHistoryPage';
+import { PendingProofsPage } from './app/features/payments/PendingProofsPage';
 import { PublicPaymentPage } from './app/features/payments/PublicPaymentPage';
 import { OnboardingPage } from './app/features/onboarding/OnboardingPage';
 import { SelectSportPage } from './app/features/onboarding/SelectSportPage';
@@ -18,6 +20,7 @@ import { AcademiesPage } from './app/features/academies/AcademiesPage';
 import { ExercisesPage } from './app/features/academies/ExercisesPage';
 import { CoachAssignmentsPage } from './app/features/academies/CoachAssignmentsPage';
 import { AcademyDetailPage } from './app/features/academies/AcademyDetailPage';
+import { HelpCenterPage } from './app/features/help/HelpCenterPage';
 import { Toaster } from '@/components/ui/sonner';
 
 const App: React.FC = () => (
@@ -41,12 +44,17 @@ const App: React.FC = () => (
         <PrivateRoute exact path="/availability" component={AvailabilitySettings} />
         <PrivateRoute exact path="/clients" component={ClientListPage} />
         <PrivateRoute exact path="/payment-settings" component={PaymentSettingsPage} />
+        <PrivateRoute exact path="/payment-history" component={PaymentHistoryPage} />
+        <PrivateRoute exact path="/pending-proofs" component={PendingProofsPage} />
         
         {/* Academies/Grupos Routes */}
         <PrivateRoute exact path="/academies" component={AcademiesPage} />
         <PrivateRoute exact path="/academies/:academyId" component={AcademyDetailPage} />
         <PrivateRoute exact path="/exercises" component={ExercisesPage} />
         <PrivateRoute exact path="/coach-assignments" component={CoachAssignmentsPage} />
+
+        {/* Help Center */}
+        <PrivateRoute exact path="/help" component={HelpCenterPage} />
 
         {/* Default Redirect - go to login */}
         <Route exact path="/">

@@ -17,7 +17,10 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  UsersRound
+  UsersRound,
+  HelpCircle,
+  History,
+  FileCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -61,6 +64,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       ]
     },
     { label: 'Configuración de Pagos', icon: CreditCard, path: '/payment-settings' },
+    { label: 'Historial de Pagos', icon: History, path: '/payment-history' },
+    { label: 'Comprobantes Pendientes', icon: FileCheck, path: '/pending-proofs' },
+    { label: 'Centro de Ayuda', icon: HelpCircle, path: '/help' },
   ];
 
   const handleLogout = async () => {

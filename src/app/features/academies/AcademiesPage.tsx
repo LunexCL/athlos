@@ -28,7 +28,7 @@ export const AcademiesPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 max-w-7xl mx-auto" data-tour="academies-section">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Academias/Grupos</h1>

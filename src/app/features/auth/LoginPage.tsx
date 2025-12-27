@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { signInWithEmail, signInWithGoogle } from '@/lib/auth';
-import Tenant from '@/estructura/Tenant';
+import { createTenantAndUser } from '@/lib/tenant';
 import { getAuthErrorMessage } from './types';
 import { Loader2 } from 'lucide-react';
 
@@ -85,7 +85,7 @@ export const LoginPage: React.FC = () => {
 
       // Create tenant/user if first time (will skip if already exists)
       console.log('2️⃣ Checking/creating tenant and user documents...');
-      await Tenant.createWithOwner({
+      await createTenantAndUser({
         userId: user.uid,
         email: user.email || '',
         displayName: user.displayName || 'Usuario',
